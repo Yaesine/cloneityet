@@ -9,6 +9,7 @@ import '../services/firestore_service.dart';
 import '../services/location_service.dart';
 import '../utils/custom_page_route.dart';
 import 'chat_screen.dart';
+import 'modern_chat_screen.dart';
 
 class NearbyUsersScreen extends StatefulWidget {
   const NearbyUsersScreen({Key? key}) : super(key: key);
@@ -403,7 +404,7 @@ class UserProfileDetail extends StatelessWidget {
                                 Navigator.of(context).pop();
                                 Navigator.of(context).push(
                                   CustomPageRoute(
-                                    child: const ChatScreen(),
+                                    child: const ModernChatScreen(),
                                     settings: RouteSettings(arguments: matchedUser),
                                   ),
                                 );

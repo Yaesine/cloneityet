@@ -3,6 +3,7 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../providers/app_auth_provider.dart';
 import '../screens/profile_edit_screen.dart';
+import 'modern_profile_edit_screen.dart';
 
 class ProfileScreen extends StatefulWidget {
   const ProfileScreen({Key? key}) : super(key: key);
@@ -156,7 +157,7 @@ class _ProfileScreenState extends State<ProfileScreen> {
                           Navigator.push(
                             context,
                             MaterialPageRoute(
-                              builder: (context) => ProfileEditScreen(),
+                              builder: (context) => ModernProfileEditScreen(),
                             ),
                           ).then((_) => _loadUserData());
                         },

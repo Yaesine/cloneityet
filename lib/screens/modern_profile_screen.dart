@@ -7,6 +7,8 @@ import '../theme/app_theme.dart';
 import '../screens/profile_edit_screen.dart';
 import 'package:cached_network_image/cached_network_image.dart';
 
+import 'modern_profile_edit_screen.dart';
+
 class ModernProfileScreen extends StatefulWidget {
   const ModernProfileScreen({Key? key}) : super(key: key);
 
@@ -461,7 +463,7 @@ class _ModernProfileScreenState extends State<ModernProfileScreen> with SingleTi
           Navigator.push(
             context,
             MaterialPageRoute(
-              builder: (context) => const ProfileEditScreen(),
+              builder: (context) => const ModernProfileEditScreen(),
             ),
           ).then((_) => _loadUserData());
         },

@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../animations/match_animation.dart';
+import '../animations/modern_match_animation.dart';
 import '../providers/app_auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../utils/custom_page_route.dart';
@@ -9,6 +10,7 @@ import '../models/user_model.dart';
 import '../data/dummy_data.dart';
 import '../screens/nearby_users_screen.dart';
 import 'chat_screen.dart';
+import 'modern_chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -46,11 +48,12 @@ class _HomeScreenState extends State<HomeScreen> {
 
       if (currentUser != null) {
         // Show match animation
+        // Change this in both HomeScreen and ModernHomeScreen
         Navigator.of(context).push(
           PageRouteBuilder(
             opaque: false,
             pageBuilder: (context, animation, secondaryAnimation) {
-              return MatchAnimation(
+              return ModernMatchAnimation(  // Use ModernMatchAnimation instead of MatchAnimation
                 currentUser: currentUser,
                 matchedUser: matchedUser,
                 onDismiss: () {
@@ -60,7 +63,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     CustomPageRoute(
-                      child: const ChatScreen(),
+                      child: const ModernChatScreen(),
                       settings: RouteSettings(arguments: matchedUser),
                     ),
                   );

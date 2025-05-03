@@ -1,6 +1,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
 import 'package:new_tinder_clone/screens/debug_screen.dart';
+import 'package:new_tinder_clone/screens/modern_chat_screen.dart';
+import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
 import 'package:new_tinder_clone/screens/nearby_users_screen.dart';
 import 'package:new_tinder_clone/services/firestore_service.dart';
 import 'package:new_tinder_clone/services/location_service.dart';
@@ -16,6 +18,7 @@ import 'screens/splash_screen.dart';
 import 'services/notifications_service.dart';
 import 'theme/app_theme.dart';
 import 'screens/modern_home_screen.dart';
+import 'screens/modern_profile_screen.dart';
 
 // Add these imports
 import 'screens/photo_manager_screen.dart';
@@ -97,7 +100,7 @@ class MyApp extends StatelessWidget {
         routes: {
           '/login': (context) => const LoginScreen(),
           '/main': (context) => const MainScreen(),
-          '/chat': (context) => const ChatScreen(),
+          '/chat': (context) => const ModernChatScreen(),
           '/photoManager': (context) => const PhotoManagerScreen(),
           '/filters': (context) => const FiltersScreen(),
           '/debug': (context) => const DebugScreen(), // Add this line
@@ -118,9 +121,9 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
-    const HomeScreen(),
+    const ModernHomeScreen(), // Replace HomeScreen with ModernHomeScreen
     const MatchesScreen(),
-    const ProfileScreen(),
+    const ModernProfileScreen(),
   ];
 
   final PageController _pageController = PageController();

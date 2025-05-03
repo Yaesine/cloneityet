@@ -40,19 +40,43 @@ class _ChatScreenState extends State<ChatScreen> {
   }
 
   Future<void> _loadMessages() async {
-    // Get matched user from route arguments
-    _matchedUser = ModalRoute.of(context)!.settings.arguments as User;
+    try {
+      // Get matched user from route arguments with null safety
+      final args = ModalRoute.of(context)?.settings.arguments;
+      if (args == null) {
+        // Handle case when no arguments are passed
+        if (mounted) {
+          setState(() {
+            _isLoading = false;
+          });
+        }
+        return;
+      }
 
-    setState(() {
-      _isLoading = true;
-    });
+      _matchedUser = args as User;
 
-    // Load messages for this match
-    await _messageProvider.loadMessages(_matchedUser.id);
+      if (mounted) {
+        setState(() {
+          _isLoading = true;
+        });
+      }
 
-    setState(() {
-      _isLoading = false;
-    });
+      // Load messages for this match
+      await _messageProvider.loadMessages(_matchedUser.id);
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    } catch (e) {
+      print('Error loading messages: $e');
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _sendMessage() async {

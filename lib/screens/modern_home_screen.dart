@@ -10,6 +10,7 @@ import '../models/user_model.dart';
 import '../theme/app_theme.dart';
 import '../screens/chat_screen.dart';
 import '../screens/nearby_users_screen.dart';
+import 'modern_chat_screen.dart';
 
 class ModernHomeScreen extends StatefulWidget {
   const ModernHomeScreen({Key? key}) : super(key: key);
@@ -88,7 +89,7 @@ class _ModernHomeScreenState extends State<ModernHomeScreen> with SingleTickerPr
                   Navigator.of(context).pop();
                   Navigator.of(context).push(
                     CustomPageRoute(
-                      child: const ChatScreen(),
+                      child: const ModernChatScreen(),
                       settings: RouteSettings(arguments: matchedUser),
                     ),
                   );

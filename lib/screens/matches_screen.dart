@@ -4,6 +4,7 @@ import '../providers/user_provider.dart';
 import '../models/user_model.dart';
 import '../utils/custom_page_route.dart';
 import '../screens/chat_screen.dart';
+import 'modern_chat_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
   const MatchesScreen({Key? key}) : super(key: key);
@@ -112,7 +113,7 @@ class _MatchesScreenState extends State<MatchesScreen> with SingleTickerProvider
       onTap: () {
         Navigator.of(context).push(
           CustomPageRoute(
-            child: const ChatScreen(),
+            child: const ModernChatScreen(),
             settings: RouteSettings(arguments: user),
           ),
         );
@@ -285,7 +286,7 @@ class _MatchesScreenState extends State<MatchesScreen> with SingleTickerProvider
           // Navigate to chat screen
           Navigator.of(context).push(
             CustomPageRoute(
-              child: const ChatScreen(),
+              child: const ModernChatScreen(),
               settings: RouteSettings(arguments: user),
             ),
           );
