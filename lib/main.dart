@@ -14,6 +14,8 @@ import 'screens/chat_screen.dart';
 import 'screens/login_screen.dart';
 import 'screens/splash_screen.dart';
 import 'services/notifications_service.dart';
+import 'theme/app_theme.dart';
+import 'screens/modern_home_screen.dart';
 
 // Add these imports
 import 'screens/photo_manager_screen.dart';
@@ -90,40 +92,7 @@ class MyApp extends StatelessWidget {
       ],
       child: MaterialApp(
         title: 'Flutter Tinder Clone',
-        theme: ThemeData(
-          primarySwatch: Colors.red,
-          visualDensity: VisualDensity.adaptivePlatformDensity,
-          fontFamily: 'Roboto',
-          appBarTheme: const AppBarTheme(
-            backgroundColor: Colors.white,
-            foregroundColor: Colors.black,
-            elevation: 1,
-            centerTitle: true,
-          ),
-          cardTheme: CardTheme(
-            elevation: 3,
-            shape: RoundedRectangleBorder(
-              borderRadius: BorderRadius.circular(16),
-            ),
-            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
-          ),
-          elevatedButtonTheme: ElevatedButtonThemeData(
-            style: ElevatedButton.styleFrom(
-              backgroundColor: Colors.red,
-              foregroundColor: Colors.white,
-              shape: RoundedRectangleBorder(
-                borderRadius: BorderRadius.circular(30),
-              ),
-              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
-            ),
-          ),
-          pageTransitionsTheme: const PageTransitionsTheme(
-            builders: {
-              TargetPlatform.android: CupertinoPageTransitionsBuilder(),
-              TargetPlatform.iOS: CupertinoPageTransitionsBuilder(),
-            },
-          ),
-        ),
+        theme: AppTheme.lightTheme,
         home: const SplashScreen(),
         routes: {
           '/login': (context) => const LoginScreen(),
@@ -163,6 +132,7 @@ class _MainScreenState extends State<MainScreen> {
     // Load user data and update location when app starts
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.forceSyncCurrentUser();
       await userProvider.loadCurrentUser();
 
       // Get current user ID
