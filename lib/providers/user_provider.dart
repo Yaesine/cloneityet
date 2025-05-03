@@ -124,6 +124,7 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+  // In lib/providers/user_provider.dart - forceSyncCurrentUser() method
   Future<void> forceSyncCurrentUser() async {
     try {
       // Get the current Firebase Auth user
