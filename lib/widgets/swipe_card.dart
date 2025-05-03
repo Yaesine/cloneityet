@@ -7,6 +7,7 @@ class SwipeCard extends StatefulWidget {
   final bool isTop;
   final VoidCallback onSwipeLeft;
   final VoidCallback onSwipeRight;
+  final VoidCallback onSuperLike; // Add this line
 
   const SwipeCard({
     Key? key,
@@ -14,7 +15,10 @@ class SwipeCard extends StatefulWidget {
     required this.isTop,
     required this.onSwipeLeft,
     required this.onSwipeRight,
+    required this.onSuperLike,
   }) : super(key: key);
+
+
 
   @override
   _SwipeCardState createState() => _SwipeCardState();
@@ -275,9 +279,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
                             _buildActionButton(
                               Icons.star,
                               Colors.blue,
-                                  () {
-                                // Super like functionality could be added here
-                              },
+                              _handleSuperLike,
                               size: 32,
                             ),
                             _buildActionButton(
@@ -327,6 +329,10 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
         ),
       ),
     );
+  }
+
+  void _handleSuperLike() {
+    widget.onSuperLike();
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {

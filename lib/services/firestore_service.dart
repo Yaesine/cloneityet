@@ -116,7 +116,9 @@ class FirestoreService {
   }
 
   // Record a swipe decision
-  Future<bool> recordSwipe(String swipedUserId, bool isLike) async {
+  // In the FirestoreService class, let's modify the recordSwipe method:
+
+  Future<bool> recordSwipe(String swipedUserId, bool isLike, {bool isSuperLike = false}) async {
     try {
       if (currentUserId == null) return false;
 
@@ -125,28 +127,30 @@ class FirestoreService {
         'swiperId': currentUserId,
         'swipedId': swipedUserId,
         'liked': isLike,
+        'superLiked': isSuperLike, // Add this field
         'timestamp': Timestamp.now(),
       });
 
       // If it was a dislike, we don't need to check for a match
       if (!isLike) return false;
 
-      // Check if swiped user also liked current user
+      // Check if swiped user also liked current user or if this is a super like
       QuerySnapshot mutualLikeCheck = await _swipesCollection
           .where('swiperId', isEqualTo: swipedUserId)
           .where('swipedId', isEqualTo: currentUserId)
           .where('liked', isEqualTo: true)
           .get();
 
-      // If mutual like, create a match
-      if (mutualLikeCheck.docs.isNotEmpty) {
+      // If mutual like or super like, create a match
+      if (mutualLikeCheck.docs.isNotEmpty || isSuperLike) {
         String matchId = '$currentUserId-$swipedUserId';
 
-        // Create match document
+        // Create match document with super like info
         await _matchesCollection.doc(matchId).set({
           'userId': currentUserId,
           'matchedUserId': swipedUserId,
           'timestamp': Timestamp.now(),
+          'superLike': isSuperLike,
         });
 
         // Create reverse match for other user
@@ -155,6 +159,7 @@ class FirestoreService {
           'userId': swipedUserId,
           'matchedUserId': currentUserId,
           'timestamp': Timestamp.now(),
+          'superLike': isSuperLike,
         });
 
         return true; // Match created
@@ -166,6 +171,7 @@ class FirestoreService {
       return false;
     }
   }
+
 
   // Get user matches
   Future<List<Match>> getUserMatches() async {

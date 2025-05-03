@@ -28,6 +28,36 @@ class UserProvider with ChangeNotifier {
     await loadPotentialMatches();
   }
 
+
+  Future<void> superLike(String userId) async {
+    try {
+      bool isMatch = await _firestoreService.recordSwipe(userId, true, isSuperLike: true);
+
+      if (isMatch) {
+        // If it's a match, load the matched user
+        final matchedUser = await _firestoreService.getUserData(userId);
+        if (matchedUser != null) {
+          // Create match objects
+          final newMatch = Match(
+            id: '${_firestoreService.currentUserId}-$userId',
+            userId: _firestoreService.currentUserId!,
+            matchedUserId: userId,
+            timestamp: DateTime.now(),
+          );
+
+          _matches.add(newMatch);
+          _matchedUsers.add(matchedUser);
+        }
+      }
+
+      // Remove from potential matches
+      _potentialMatches.removeWhere((user) => user.id == userId);
+      notifyListeners();
+    } catch (e) {
+      print('Error super liking: $e');
+    }
+  }
+
   // Load current user data
   Future<void> loadCurrentUser() async {
     _isLoading = true;
@@ -101,14 +131,16 @@ class UserProvider with ChangeNotifier {
     }
   }
 
+
   // Swipe right (like)
-  Future<void> swipeRight(String userId) async {
+  Future<User?> swipeRight(String userId) async {
     try {
       bool isMatch = await _firestoreService.recordSwipe(userId, true);
+      User? matchedUser;
 
       if (isMatch) {
         // If it's a match, load the matched user
-        final matchedUser = await _firestoreService.getUserData(userId);
+        matchedUser = await _firestoreService.getUserData(userId);
         if (matchedUser != null) {
           // Create match objects
           final newMatch = Match(
@@ -126,8 +158,12 @@ class UserProvider with ChangeNotifier {
       // Remove from potential matches regardless of match result
       _potentialMatches.removeWhere((user) => user.id == userId);
       notifyListeners();
+
+      // Return the matched user if there was a match
+      return matchedUser;
     } catch (e) {
       print('Error swiping right: $e');
+      return null;
     }
   }
 

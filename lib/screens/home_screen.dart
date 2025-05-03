@@ -1,10 +1,13 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import '../animations/Match_Animation.dart';
 import '../providers/app_auth_provider.dart';
 import '../providers/user_provider.dart';
+import '../utils/custom_page_route.dart';
 import '../widgets/swipe_card.dart';
 import '../models/user_model.dart';
-import '../data/dummy_data.dart'; // Make sure this import exists
+import '../data/dummy_data.dart';
+import 'chat_screen.dart'; // Make sure this import exists
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -27,8 +30,46 @@ class _HomeScreenState extends State<HomeScreen> {
     Provider.of<UserProvider>(context, listen: false).swipeLeft(userId);
   }
 
-  void _handleSwipeRight(String userId) {
-    Provider.of<UserProvider>(context, listen: false).swipeRight(userId);
+  void _handleSuperLike(String userId) {
+    Provider.of<UserProvider>(context, listen: false).superLike(userId);
+  }
+
+  void _handleSwipeRight(String userId) async {
+    final userProvider = Provider.of<UserProvider>(context, listen: false);
+    final User? matchedUser = await userProvider.swipeRight(userId);
+
+    // Show match animation if there's a match
+    if (matchedUser != null && mounted) {
+      // Get current user
+      final currentUser = userProvider.currentUser;
+
+      if (currentUser != null) {
+        // Show match animation
+        Navigator.of(context).push(
+          PageRouteBuilder(
+            opaque: false,
+            pageBuilder: (context, animation, secondaryAnimation) {
+              return MatchAnimation(
+                currentUser: currentUser,
+                matchedUser: matchedUser,
+                onDismiss: () {
+                  Navigator.of(context).pop();
+                },
+                onSendMessage: () {
+                  Navigator.of(context).pop();
+                  Navigator.of(context).push(
+                    CustomPageRoute(
+                      child: const ChatScreen(),
+                      settings: RouteSettings(arguments: matchedUser),
+                    ),
+                  );
+                },
+              );
+            },
+          ),
+        );
+      }
+    }
   }
 
   @override
@@ -96,6 +137,7 @@ class _HomeScreenState extends State<HomeScreen> {
                   isTop: index == profiles.length - 1,
                   onSwipeLeft: () => _handleSwipeLeft(user.id),
                   onSwipeRight: () => _handleSwipeRight(user.id),
+                  onSuperLike: () => _handleSuperLike(user.id),
                 ),
               );
             }).toList(),

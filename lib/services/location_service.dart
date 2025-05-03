@@ -1,5 +1,8 @@
+import 'package:geocoding/geocoding.dart';
 import 'package:geolocator/geolocator.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
+// First, let's update the LocationService to get current user location and update it in Firestore:
 
 class LocationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
@@ -12,7 +15,8 @@ class LocationService {
     // Check if location services are enabled
     serviceEnabled = await Geolocator.isLocationServiceEnabled();
     if (!serviceEnabled) {
-      return null;
+      // Location services are not enabled
+      return Future.error('Location services are disabled.');
     }
 
     // Check for location permission
@@ -20,22 +24,34 @@ class LocationService {
     if (permission == LocationPermission.denied) {
       permission = await Geolocator.requestPermission();
       if (permission == LocationPermission.denied) {
-        return null;
+        // Permissions are denied
+        return Future.error('Location permissions are denied');
       }
     }
 
     if (permission == LocationPermission.deniedForever) {
-      return null;
+      // Permissions are denied forever
+      return Future.error(
+          'Location permissions are permanently denied, cannot request permissions.');
     }
 
     // Get current position
     return await Geolocator.getCurrentPosition();
   }
 
-  // Get address from coordinates (simpler version)
+  // Convert coordinates to address using geocoding
   Future<String> getAddressFromPosition(Position position) async {
     try {
-      // Just return the coordinates as a string for now
+      final List<Placemark> placemarks = await placemarkFromCoordinates(
+        position.latitude,
+        position.longitude,
+      );
+
+      if (placemarks.isNotEmpty) {
+        final place = placemarks.first;
+        return '${place.locality}, ${place.administrativeArea}';
+      }
+
       return '${position.latitude}, ${position.longitude}';
     } catch (e) {
       print('Error getting address: $e');

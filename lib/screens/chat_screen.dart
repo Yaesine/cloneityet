@@ -1,8 +1,13 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../models/message_model.dart';
 import 'package:intl/intl.dart';
 
+import '../providers/app_auth_provider.dart';
+import '../providers/message_provider.dart';
+
+// Updated ChatScreen
 class ChatScreen extends StatefulWidget {
   const ChatScreen({Key? key}) : super(key: key);
 
@@ -12,100 +17,78 @@ class ChatScreen extends StatefulWidget {
 
 class _ChatScreenState extends State<ChatScreen> {
   final _messageController = TextEditingController();
-  final List<Message> _messages = [];
+  late MessageProvider _messageProvider;
   late User _matchedUser;
+  bool _isLoading = true;
 
   @override
   void initState() {
     super.initState();
-    // Load dummy messages in simulated delay
-    Future.delayed(const Duration(milliseconds: 300), () {
-      if (mounted) {
-        setState(() {
-          _messages.addAll(_getDummyMessages());
-        });
-      }
+    _messageProvider = MessageProvider();
+
+    // Use post-frame callback to ensure we have route arguments
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadMessages();
     });
   }
 
   @override
   void dispose() {
     _messageController.dispose();
+    _messageProvider.stopMessagesStream();
     super.dispose();
   }
 
-  List<Message> _getDummyMessages() {
-    // In a real app, these would come from a database or API
-    final currentUserId = 'user_123';
-    final matchedUserId = _matchedUser.id;
+  Future<void> _loadMessages() async {
+    // Get matched user from route arguments
+    _matchedUser = ModalRoute.of(context)!.settings.arguments as User;
 
-    return [
-      Message(
-        id: 'm1',
-        senderId: matchedUserId,
-        receiverId: currentUserId,
-        text: 'Hey there! How are you?',
-        timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 2)),
-      ),
-      Message(
-        id: 'm2',
-        senderId: currentUserId,
-        receiverId: matchedUserId,
-        text: 'Hi! I\'m good, thanks for asking. How about you?',
-        timestamp: DateTime.now().subtract(const Duration(days: 1, hours: 1)),
-      ),
-      Message(
-        id: 'm3',
-        senderId: matchedUserId,
-        receiverId: currentUserId,
-        text: 'I\'m doing well! I noticed we both like hiking. What\'s your favorite trail?',
-        timestamp: DateTime.now().subtract(const Duration(hours: 12)),
-      ),
-    ];
+    setState(() {
+      _isLoading = true;
+    });
+
+    // Load messages for this match
+    await _messageProvider.loadMessages(_matchedUser.id);
+
+    setState(() {
+      _isLoading = false;
+    });
   }
 
-  void _sendMessage() {
+  void _sendMessage() async {
     if (_messageController.text.trim().isEmpty) {
       return;
     }
 
-    final newMessage = Message(
-      id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-      senderId: 'user_123', // Current user ID
-      receiverId: _matchedUser.id,
-      text: _messageController.text,
-      timestamp: DateTime.now(),
+    final messageText = _messageController.text.trim();
+    _messageController.clear();
+
+    // Send the message
+    bool success = await _messageProvider.sendMessage(
+        _matchedUser.id,
+        messageText
     );
 
-    setState(() {
-      _messages.add(newMessage);
-      _messageController.clear();
-    });
-
-    // Simulate a reply after a short delay
-    if (_messages.length % 2 == 0) {
-      Future.delayed(const Duration(seconds: 2), () {
-        if (mounted) {
-          final replyMessage = Message(
-            id: 'msg_${DateTime.now().millisecondsSinceEpoch}',
-            senderId: _matchedUser.id,
-            receiverId: 'user_123',
-            text: 'That sounds interesting! Tell me more about it.',
-            timestamp: DateTime.now(),
-          );
-
-          setState(() {
-            _messages.add(replyMessage);
-          });
-        }
-      });
+    if (!success && mounted) {
+      ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(content: Text('Failed to send message. Please try again.'))
+      );
     }
   }
 
   @override
   Widget build(BuildContext context) {
-    // Get the matched user from route arguments
-    _matchedUser = ModalRoute.of(context)!.settings.arguments as User;
+    // Check if we have _matchedUser before proceeding
+    if (ModalRoute.of(context)?.settings.arguments == null) {
+      return const Scaffold(
+        body: Center(child: CircularProgressIndicator()),
+      );
+    }
+
+    // Get the matched user if not already set
+    if (!this.mounted) {
+      _matchedUser = ModalRoute.of(context)!.settings.arguments as User;
+    }
 
     return Scaffold(
       appBar: AppBar(
@@ -126,8 +109,8 @@ class _ChatScreenState extends State<ChatScreen> {
       body: Column(
         children: [
           Expanded(
-            child: _messages.isEmpty
-                ? _buildEmptyChatView()
+            child: _isLoading
+                ? const Center(child: CircularProgressIndicator())
                 : _buildChatMessages(),
           ),
           _buildMessageInput(),
@@ -136,46 +119,33 @@ class _ChatScreenState extends State<ChatScreen> {
     );
   }
 
-  Widget _buildEmptyChatView() {
-    return Center(
-      child: Column(
-        mainAxisAlignment: MainAxisAlignment.center,
-        children: [
-          CircleAvatar(
-            backgroundImage: NetworkImage(_matchedUser.imageUrls[0]),
-            radius: 60,
-          ),
-          const SizedBox(height: 16),
-          Text(
-            'You matched with ${_matchedUser.name}',
-            style: const TextStyle(
-              fontSize: 18,
-              fontWeight: FontWeight.bold,
-            ),
-          ),
-          const SizedBox(height: 8),
-          Text(
-            'Send a message to start the conversation',
-            style: TextStyle(color: Colors.grey.shade600),
-          ),
-        ],
-      ),
-    );
-  }
-
   Widget _buildChatMessages() {
-    return ListView.builder(
-      padding: const EdgeInsets.all(16),
-      reverse: true,
-      itemCount: _messages.length,
-      itemBuilder: (context, index) {
-        final message = _messages[_messages.length - 1 - index];
-        final isMe = message.senderId == 'user_123';
+    final messages = _messageProvider.messages;
 
-        return _buildMessageBubble(message, isMe);
+    if (messages.isEmpty) {
+      return _buildEmptyChatView();
+    }
+
+    return AnimatedBuilder(
+      animation: _messageProvider,
+      builder: (context, _) {
+        final updatedMessages = _messageProvider.messages;
+
+        return ListView.builder(
+          padding: const EdgeInsets.all(16),
+          reverse: true,
+          itemCount: updatedMessages.length,
+          itemBuilder: (context, index) {
+            final message = updatedMessages[index];
+            final isMe = message.senderId == Provider.of<AppAuthProvider>(context, listen: false).currentUserId;
+
+            return _buildMessageBubble(message, isMe);
+          },
+        );
       },
     );
   }
+
 
   Widget _buildMessageBubble(Message message, bool isMe) {
     return Padding(
@@ -273,6 +243,33 @@ class _ChatScreenState extends State<ChatScreen> {
               icon: const Icon(Icons.send, color: Colors.white),
               onPressed: _sendMessage,
             ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildEmptyChatView() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          CircleAvatar(
+            backgroundImage: NetworkImage(_matchedUser.imageUrls[0]),
+            radius: 60,
+          ),
+          const SizedBox(height: 16),
+          Text(
+            'You matched with ${_matchedUser.name}',
+            style: const TextStyle(
+              fontSize: 18,
+              fontWeight: FontWeight.bold,
+            ),
+          ),
+          const SizedBox(height: 8),
+          Text(
+            'Send a message to start the conversation',
+            style: TextStyle(color: Colors.grey.shade600),
           ),
         ],
       ),

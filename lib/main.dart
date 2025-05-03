@@ -1,4 +1,6 @@
 import 'package:flutter/material.dart';
+import 'package:new_tinder_clone/screens/Nearby_Users_Screen.dart';
+import 'package:new_tinder_clone/services/location_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -23,6 +25,10 @@ void main() async {
 
   final notificationsService = NotificationsService();
   await notificationsService.initialize();
+
+  // Initialize location services
+  final locationService = LocationService();
+
   runApp(const MyApp());
 }
 
@@ -89,9 +95,24 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-    // Load user data when app starts
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<UserProvider>(context, listen: false).loadPotentialMatches();
+
+    // Load user data and update location when app starts
+    WidgetsBinding.instance.addPostFrameCallback((_) async {
+      final userProvider = Provider.of<UserProvider>(context, listen: false);
+      await userProvider.loadCurrentUser();
+
+      // Get current user ID
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      final userId = authProvider.currentUserId;
+
+      if (userId.isNotEmpty) {
+        // Update user location
+        final locationService = LocationService();
+        await locationService.updateUserLocation(userId);
+      }
+
+      // Load potential matches
+      userProvider.loadPotentialMatches();
     });
   }
 
@@ -100,6 +121,7 @@ class _MainScreenState extends State<MainScreen> {
     _pageController.dispose();
     super.dispose();
   }
+
 
   @override
   Widget build(BuildContext context) {
@@ -142,6 +164,17 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
+      floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
+        onPressed: () {
+          Navigator.of(context).push(
+            MaterialPageRoute(
+              builder: (context) => const NearbyUsersScreen(),
+            ),
+          );
+        },
+        backgroundColor: Colors.red,
+        child: const Icon(Icons.location_on),
+      ) : null,
     );
   }
 }
