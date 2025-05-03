@@ -7,7 +7,7 @@ class SwipeCard extends StatefulWidget {
   final bool isTop;
   final VoidCallback onSwipeLeft;
   final VoidCallback onSwipeRight;
-  final VoidCallback onSuperLike; // Add this line
+  final VoidCallback onSuperLike;
 
   const SwipeCard({
     Key? key,
@@ -17,8 +17,6 @@ class SwipeCard extends StatefulWidget {
     required this.onSwipeRight,
     required this.onSuperLike,
   }) : super(key: key);
-
-
 
   @override
   _SwipeCardState createState() => _SwipeCardState();
@@ -99,7 +97,9 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
                           Hero(
                             tag: 'profile_image_${widget.user.id}',
                             child: Image.network(
-                              widget.user.imageUrls[_currentImageIndex],
+                              widget.user.imageUrls.isNotEmpty
+                                  ? widget.user.imageUrls[_currentImageIndex]
+                                  : 'https://i.pravatar.cc/300?img=33',
                               fit: BoxFit.cover,
                               errorBuilder: (context, error, stackTrace) {
                                 return Container(
@@ -138,7 +138,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
                               ),
                             ),
 
-                          // Swipe indicators - more prominent now
+                          // Swipe indicators
                           if (widget.isTop && _dragOffset != 0)
                             Positioned(
                               top: 24,
@@ -264,7 +264,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
                       ),
                     ),
 
-                    // Action buttons with improved styling
+                    // Action buttons
                     if (widget.isTop)
                       Padding(
                         padding: const EdgeInsets.all(16.0),
@@ -281,6 +281,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
                               Colors.blue,
                               _handleSuperLike,
                               size: 32,
+                              hasBorder: true,
                             ),
                             _buildActionButton(
                               Icons.favorite,
@@ -305,6 +306,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
       Color color,
       VoidCallback onTap, {
         double size = 24,
+        bool hasBorder = false,
       }) {
     return GestureDetector(
       onTap: onTap,
@@ -316,11 +318,12 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
           shape: BoxShape.circle,
           boxShadow: [
             BoxShadow(
-              color: color.withOpacity(0.2),
+              color: color.withOpacity(0.3),
               blurRadius: 10,
               spreadRadius: 2,
             ),
           ],
+          border: hasBorder ? Border.all(color: color, width: 2) : null,
         ),
         child: Icon(
           icon,
@@ -332,7 +335,39 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
   }
 
   void _handleSuperLike() {
-    widget.onSuperLike();
+    // Create a super like animation
+    final screenWidth = MediaQuery.of(context).size.width;
+
+    setState(() {
+      // Reset position to center
+      _dragOffset = 0;
+      _dragAngle = 0;
+    });
+
+    // Show a star animation
+    showDialog(
+      context: context,
+      barrierColor: Colors.transparent,
+      builder: (ctx) => Center(
+        child: TweenAnimationBuilder(
+          tween: Tween<double>(begin: 0.0, end: 1.0),
+          duration: const Duration(milliseconds: 800),
+          builder: (context, value, child) {
+            return Transform.scale(
+              scale: 2.0 * value,
+              child: Opacity(
+                opacity: value > 0.8 ? 2.0 - value * 2 : value,
+                child: Icon(Icons.star, color: Colors.blue, size: 100),
+              ),
+            );
+          },
+          onEnd: () {
+            Navigator.of(ctx).pop();
+            widget.onSuperLike();
+          },
+        ),
+      ),
+    );
   }
 
   void _handleDragUpdate(DragUpdateDetails details) {
@@ -392,7 +427,7 @@ class _SwipeCardState extends State<SwipeCard> with SingleTickerProviderStateMix
     }
   }
 
-  // New method to handle button-initiated swipes
+  // Button-initiated swipes
   void _handleSwipe(bool isRight) {
     // Set up the same animations as drag end
     final screenWidth = MediaQuery.of(context).size.width;

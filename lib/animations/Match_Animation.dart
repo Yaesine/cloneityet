@@ -25,6 +25,7 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
   late AnimationController _controller;
   late Animation<double> _scaleAnimation;
   late Animation<double> _fadeAnimation;
+  late Animation<double> _heartBeatAnimation;
 
   @override
   void initState() {
@@ -32,7 +33,7 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
 
     _controller = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 800),
+      duration: const Duration(milliseconds: 1200),
     );
 
     _scaleAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
@@ -42,6 +43,16 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
     _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
       CurvedAnimation(parent: _controller, curve: Interval(0.4, 1.0, curve: Curves.easeIn)),
     );
+
+    _heartBeatAnimation = TweenSequence<double>([
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.3), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 1.3, end: 1.0), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 1.0, end: 1.2), weight: 1),
+      TweenSequenceItem(tween: Tween(begin: 1.2, end: 1.0), weight: 1),
+    ]).animate(CurvedAnimation(
+      parent: _controller,
+      curve: const Interval(0.4, 0.8),
+    ));
 
     // Start animation
     _controller.forward();
@@ -76,7 +87,9 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
             child: Column(
               mainAxisAlignment: MainAxisAlignment.center,
               children: [
-                // It's a Match text
+                // Confetti animation could be added here
+
+                // "It's a Match!" text
                 AnimatedBuilder(
                   animation: _controller,
                   builder: (context, child) {
@@ -127,13 +140,21 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
                           ),
 
                           // Heart icon
-                          Container(
-                            margin: const EdgeInsets.symmetric(horizontal: 10),
-                            child: Icon(
-                              Icons.favorite,
-                              color: Colors.white,
-                              size: 50,
-                            ),
+                          AnimatedBuilder(
+                              animation: _heartBeatAnimation,
+                              builder: (context, child) {
+                                return Transform.scale(
+                                  scale: _heartBeatAnimation.value,
+                                  child: Container(
+                                    margin: const EdgeInsets.symmetric(horizontal: 10),
+                                    child: Icon(
+                                      Icons.favorite,
+                                      color: Colors.white,
+                                      size: 50,
+                                    ),
+                                  ),
+                                );
+                              }
                           ),
 
                           // Matched user image
@@ -150,6 +171,29 @@ class _MatchAnimationState extends State<MatchAnimation> with SingleTickerProvid
                             ),
                           ),
                         ],
+                      ),
+                    );
+                  },
+                ),
+
+                const SizedBox(height: 24),
+
+                // Match description
+                AnimatedBuilder(
+                  animation: _controller,
+                  builder: (context, child) {
+                    return Opacity(
+                      opacity: _fadeAnimation.value,
+                      child: Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 32),
+                        child: Text(
+                          "You and ${widget.matchedUser.name} have liked each other!",
+                          textAlign: TextAlign.center,
+                          style: const TextStyle(
+                            color: Colors.white,
+                            fontSize: 16,
+                          ),
+                        ),
                       ),
                     );
                   },

@@ -1,13 +1,14 @@
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
-import '../animations/Match_Animation.dart';
+import '../animations/match_animation.dart';
 import '../providers/app_auth_provider.dart';
 import '../providers/user_provider.dart';
 import '../utils/custom_page_route.dart';
 import '../widgets/swipe_card.dart';
 import '../models/user_model.dart';
 import '../data/dummy_data.dart';
-import 'chat_screen.dart'; // Make sure this import exists
+import '../screens/nearby_users_screen.dart';
+import 'chat_screen.dart';
 
 class HomeScreen extends StatefulWidget {
   const HomeScreen({Key? key}) : super(key: key);
@@ -74,10 +75,6 @@ class _HomeScreenState extends State<HomeScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // In your HomeScreen build method
-    print('Current user ID: ${Provider.of<AppAuthProvider>(context, listen: false).currentUserId}');
-  //  print('Number of potential matches: ${userProvider.potentialMatches.length}');
-
     return Scaffold(
       appBar: AppBar(
         title: Row(
@@ -88,6 +85,20 @@ class _HomeScreenState extends State<HomeScreen> {
             Text('Tinder Clone'),
           ],
         ),
+        actions: [
+          // Add nearby button in the app bar
+          IconButton(
+            icon: const Icon(Icons.location_on),
+            color: Colors.red,
+            onPressed: () {
+              Navigator.of(context).push(
+                MaterialPageRoute(
+                  builder: (context) => const NearbyUsersScreen(),
+                ),
+              );
+            },
+          ),
+        ],
         centerTitle: true,
         elevation: 0,
         backgroundColor: Colors.white,
@@ -95,15 +106,17 @@ class _HomeScreenState extends State<HomeScreen> {
       ),
       body: Consumer<UserProvider>(
         builder: (context, userProvider, _) {
+          if (userProvider.isLoading) {
+            return const Center(child: CircularProgressIndicator());
+          }
+
           // Get profiles from provider
           List<User> profiles = userProvider.potentialMatches;
 
-          // If no profiles are available from the provider, use dummy data
-          if (profiles.isEmpty) {
-            profiles = DummyData.getDummyUsers();
-          }
+          print('Current user ID: ${Provider.of<AppAuthProvider>(context, listen: false).currentUserId}');
+          print('Number of potential matches: ${profiles.length}');
 
-          // Now continue with your existing condition
+          // If no profiles are available, show empty state
           if (profiles.isEmpty) {
             return const Center(
               child: Column(
@@ -125,7 +138,7 @@ class _HomeScreenState extends State<HomeScreen> {
             );
           }
 
-          // Continue with the rest of your existing code for displaying the profiles
+          // Display swipe cards
           return Stack(
             children: profiles.asMap().entries.map((entry) {
               final index = entry.key;
@@ -145,6 +158,5 @@ class _HomeScreenState extends State<HomeScreen> {
         },
       ),
     );
-
   }
 }

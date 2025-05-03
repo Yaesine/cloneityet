@@ -21,9 +21,101 @@ class FirestoreService {
   // Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
 
+  // Add this to FirestoreService class
+  Future<void> verifyFirestoreConnection() async {
+    try {
+      print('Verifying Firestore connection...');
+      final snapshot = await _firestore.collection('users').limit(5).get();
+
+      print('Firestore connection successful');
+      print('Number of users in database: ${snapshot.docs.length}');
+
+      if (snapshot.docs.isEmpty) {
+        print('WARNING: No users found in the database!');
+      } else {
+        print('Users found in database:');
+        for (var doc in snapshot.docs) {
+          var data = doc.data() as Map<String, dynamic>;
+          print('- ${data['name'] ?? 'Unknown'} (ID: ${doc.id})');
+        }
+      }
+    } catch (e) {
+      print('ERROR connecting to Firestore: $e');
+      throw e;
+    }
+  }
+
+  // Add to FirestoreService class
+  Future<void> createTestUsersIfNeeded() async {
+    try {
+      // Check if we have at least 3 users
+      final snapshot = await _firestore.collection('users').limit(3).get();
+      if (snapshot.docs.length < 3) {
+        print('Creating test users for development...');
+
+        // Create test users with different data
+        List<Map<String, dynamic>> testUsers = [
+          {
+            'id': 'test_user_1',
+            'name': 'Sophie',
+            'age': 28,
+            'bio': 'Travel enthusiast and coffee addict',
+            'imageUrls': ['https://i.pravatar.cc/300?img=5'],
+            'interests': ['Travel', 'Coffee', 'Photography'],
+            'location': 'New York, NY',
+            'gender': 'Female',
+            'lookingFor': '',
+            'distance': 50,
+            'ageRangeStart': 25,
+            'ageRangeEnd': 35,
+          },
+          {
+            'id': 'test_user_2',
+            'name': 'James',
+            'age': 32,
+            'bio': 'Software developer by day, chef by night',
+            'imageUrls': ['https://i.pravatar.cc/300?img=7'],
+            'interests': ['Coding', 'Cooking', 'Movies'],
+            'location': 'San Francisco, CA',
+            'gender': 'Male',
+            'lookingFor': '',
+            'distance': 40,
+            'ageRangeStart': 24,
+            'ageRangeEnd': 40,
+          },
+          {
+            'id': 'test_user_3',
+            'name': 'Emma',
+            'age': 26,
+            'bio': 'Art lover and yoga instructor',
+            'imageUrls': ['https://i.pravatar.cc/300?img=9'],
+            'interests': ['Yoga', 'Art', 'Reading'],
+            'location': 'Chicago, IL',
+            'gender': 'Female',
+            'lookingFor': '',
+            'distance': 30,
+            'ageRangeStart': 26,
+            'ageRangeEnd': 35,
+          },
+        ];
+
+        // Add test users to Firestore
+        for (var userData in testUsers) {
+          String id = userData['id'];
+          await _firestore.collection('users').doc(id).set(userData);
+        }
+
+        print('Test users created successfully');
+      }
+    } catch (e) {
+      print('ERROR creating test users: $e');
+    }
+  }
+
   // Create or update user profile
   Future<void> updateUserProfile(User user) async {
     try {
+      print('Updating user profile for ${user.id}');
       await _usersCollection.doc(user.id).set(user.toJson());
     } catch (e) {
       print('Error updating user profile: $e');
@@ -34,26 +126,37 @@ class FirestoreService {
   // Create new user after registration
   Future<void> createNewUser(String userId, String name, String email) async {
     try {
+      print('Creating user profile for $userId in Firestore');
+
       // Check if user already exists
       DocumentSnapshot userDoc = await _usersCollection.doc(userId).get();
       if (userDoc.exists) {
-        return; // User already exists, no need to create
+        print('User profile for $userId already exists');
+        return;
       }
 
-      // Create a basic user profile
-      final newUser = User(
-        id: userId,
-        name: name,
-        age: 25, // Default age
-        bio: 'Tell others about yourself...',
-        imageUrls: ['https://i.pravatar.cc/300?img=33'], // Default image
-        interests: ['Travel', 'Music', 'Movies'],
-        location: 'New York, NY',
-      );
+      // Create basic user profile
+      Map<String, dynamic> userData = {
+        'id': userId,
+        'name': name,
+        'email': email,
+        'age': 25,
+        'bio': 'Tell others about yourself...',
+        'imageUrls': ['https://i.pravatar.cc/300?img=33'],
+        'interests': ['Travel', 'Music', 'Movies'],
+        'location': 'New York, NY',
+        'gender': '',
+        'lookingFor': '',
+        'distance': 50,
+        'ageRangeStart': 18,
+        'ageRangeEnd': 50,
+      };
 
-      await _usersCollection.doc(userId).set(newUser.toJson());
+      // Directly set the document with a map instead of using User model
+      await _usersCollection.doc(userId).set(userData);
+      print('User profile created successfully for $userId');
     } catch (e) {
-      print('Error creating new user: $e');
+      print('Error creating user profile: $e');
       throw e;
     }
   }
@@ -61,11 +164,13 @@ class FirestoreService {
   // Get user data
   Future<User?> getUserData(String userId) async {
     try {
+      print('Fetching user data for $userId');
       DocumentSnapshot doc = await _usersCollection.doc(userId).get();
 
       if (doc.exists) {
         return User.fromFirestore(doc);
       }
+      print('User $userId not found');
       return null;
     } catch (e) {
       print('Error fetching user data: $e');
@@ -75,39 +180,71 @@ class FirestoreService {
 
   // Get current user data
   Future<User?> getCurrentUserData() async {
-    if (currentUserId == null) return null;
+    if (currentUserId == null) {
+      print('No current user ID available');
+      return null;
+    }
+    print('Getting current user data for $currentUserId');
     return await getUserData(currentUserId!);
   }
+
+  // Get potential matches (users that are not current user and not already matched or swiped)
   // Get potential matches (users that are not current user and not already matched or swiped)
   Future<List<User>> getPotentialMatches() async {
     try {
-      if (currentUserId == null) return [];
+      if (currentUserId == null) {
+        print('No current user ID available for potential matches');
+        return [];
+      }
+
+      print('Fetching ALL users from Firestore to find potential matches');
+
+      // Get ALL users except the current user
+      List<User> allUsers = [];
+
+      // Fetch all users from Firestore
+      QuerySnapshot usersSnapshot = await _usersCollection.get();
+
+      print('Found ${usersSnapshot.docs.length} total users in database');
+
+      // Filter out the current user
+      for (var doc in usersSnapshot.docs) {
+        String userId = doc.id;
+        if (userId != currentUserId) {
+          try {
+            User user = User.fromFirestore(doc);
+            allUsers.add(user);
+            print('Added user ${user.name} (ID: ${user.id}) to potential matches list');
+          } catch (e) {
+            print('Error parsing user data for $userId: $e');
+          }
+        }
+      }
 
       // Get all swipes by current user
       QuerySnapshot swipesSnapshot = await _swipesCollection
           .where('swiperId', isEqualTo: currentUserId)
           .get();
 
+      print('User has ${swipesSnapshot.docs.length} swipe records');
+
       // Extract swiped user IDs
-      List<String> swipedUserIds = swipesSnapshot.docs
-          .map((doc) => (doc.data() as Map<String, dynamic>)['swipedId'] as String)
-          .toList();
-
-      // Add current user to excluded list
-      List<String> excludedUserIds = [...swipedUserIds, currentUserId!];
-
-      // Get all users except those in the excluded list
-      QuerySnapshot usersSnapshot = await _usersCollection.get();
-
-      List<User> potentialMatches = [];
-      for (var doc in usersSnapshot.docs) {
-        String userId = doc.id;
-        if (!excludedUserIds.contains(userId)) {
-          potentialMatches.add(User.fromFirestore(doc));
+      List<String> swipedUserIds = [];
+      for (var doc in swipesSnapshot.docs) {
+        try {
+          String swipedId = (doc.data() as Map<String, dynamic>)['swipedId'] as String;
+          swipedUserIds.add(swipedId);
+        } catch (e) {
+          print('Error parsing swipe record: $e');
         }
       }
 
-      print('Found ${potentialMatches.length} potential matches in Firestore');
+      // Filter out users that have already been swiped
+      List<User> potentialMatches = allUsers.where((user) =>
+      !swipedUserIds.contains(user.id)).toList();
+
+      print('After filtering, found ${potentialMatches.length} potential matches');
+
       return potentialMatches;
     } catch (e) {
       print('Error getting potential matches from Firestore: $e');
@@ -115,9 +252,34 @@ class FirestoreService {
     }
   }
 
-  // Record a swipe decision
-  // In the FirestoreService class, let's modify the recordSwipe method:
+  // Get all users (for debugging)
+  Future<List<User>> getAllUsers() async {
+    try {
+      print('GETTING ALL USERS FOR DEBUGGING');
 
+      List<User> allUsers = [];
+      QuerySnapshot usersSnapshot = await _usersCollection.get();
+
+      print('Total users in database: ${usersSnapshot.docs.length}');
+
+      for (var doc in usersSnapshot.docs) {
+        try {
+          User user = User.fromFirestore(doc);
+          allUsers.add(user);
+          print('Found user: ${user.name} (ID: ${user.id})');
+        } catch (e) {
+          print('Error parsing user data: $e');
+        }
+      }
+
+      return allUsers;
+    } catch (e) {
+      print('Error getting all users: $e');
+      return [];
+    }
+  }
+
+  // Record a swipe decision
   Future<bool> recordSwipe(String swipedUserId, bool isLike, {bool isSuperLike = false}) async {
     try {
       if (currentUserId == null) return false;
@@ -127,9 +289,11 @@ class FirestoreService {
         'swiperId': currentUserId,
         'swipedId': swipedUserId,
         'liked': isLike,
-        'superLiked': isSuperLike, // Add this field
+        'superLiked': isSuperLike,
         'timestamp': Timestamp.now(),
       });
+
+      print('${isLike ? "Like" : "Dislike"} recorded from $currentUserId to $swipedUserId');
 
       // If it was a dislike, we don't need to check for a match
       if (!isLike) return false;
@@ -162,9 +326,11 @@ class FirestoreService {
           'superLike': isSuperLike,
         });
 
+        print('Match created between $currentUserId and $swipedUserId');
         return true; // Match created
       }
 
+      print('No match yet between $currentUserId and $swipedUserId');
       return false; // No match yet
     } catch (e) {
       print('Error recording swipe: $e');
@@ -178,6 +344,7 @@ class FirestoreService {
     try {
       if (currentUserId == null) return [];
 
+      print('Getting matches for user $currentUserId');
       QuerySnapshot matchesSnapshot = await _matchesCollection
           .where('userId', isEqualTo: currentUserId)
           .orderBy('timestamp', descending: true)
@@ -188,6 +355,7 @@ class FirestoreService {
         matches.add(Match.fromFirestore(doc));
       }
 
+      print('Found ${matches.length} matches');
       return matches;
     } catch (e) {
       print('Error getting matches: $e');
@@ -201,6 +369,7 @@ class FirestoreService {
       List<Match> matches = await getUserMatches();
       List<User> matchedUsers = [];
 
+      print('Loading profile details for ${matches.length} matches');
       for (var match in matches) {
         User? user = await getUserData(match.matchedUserId);
         if (user != null) {
@@ -208,12 +377,14 @@ class FirestoreService {
         }
       }
 
+      print('Loaded ${matchedUsers.length} matched user profiles');
       return matchedUsers;
     } catch (e) {
       print('Error getting matched users: $e');
       return [];
     }
   }
+
   // Get messages for a specific match
   Future<List<Message>> getMessages(String matchedUserId) async {
     try {

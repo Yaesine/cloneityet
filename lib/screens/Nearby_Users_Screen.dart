@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../animations/Match_Animation.dart';
+import '../animations/match_animation.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 import '../services/firestore_service.dart';
@@ -156,10 +156,14 @@ class _NearbyUsersScreenState extends State<NearbyUsersScreen> {
       itemCount: _nearbyUsers.length,
       itemBuilder: (context, index) {
         final user = _nearbyUsers[index];
-        final distance = _locationService.calculateDistance(
-          _currentUser!.geoPoint!,
-          user.geoPoint!,
-        );
+        double distance = 0;
+
+        if (_currentUser?.geoPoint != null && user.geoPoint != null) {
+          distance = _locationService.calculateDistance(
+            _currentUser!.geoPoint!,
+            user.geoPoint!,
+          );
+        }
 
         return Card(
           margin: const EdgeInsets.only(bottom: 16),
@@ -202,7 +206,7 @@ class _NearbyUsersScreenState extends State<NearbyUsersScreen> {
             trailing: IconButton(
               icon: const Icon(Icons.arrow_forward_ios, size: 16),
               onPressed: () {
-                // Navigate to profile detail or directly to swipe view
+                // Navigate to profile detail
                 Navigator.of(context).push(
                   MaterialPageRoute(
                     builder: (context) => UserProfileDetail(user: user),
@@ -217,7 +221,7 @@ class _NearbyUsersScreenState extends State<NearbyUsersScreen> {
   }
 }
 
-// Let's also create a UserProfileDetail screen:
+// User Profile Detail Screen
 class UserProfileDetail extends StatelessWidget {
   final User user;
 
@@ -236,7 +240,7 @@ class UserProfileDetail extends StatelessWidget {
             pinned: true,
             flexibleSpace: FlexibleSpaceBar(
               background: Image.network(
-                user.imageUrls[0],
+                user.imageUrls.isNotEmpty ? user.imageUrls[0] : 'https://i.pravatar.cc/300?img=33',
                 fit: BoxFit.cover,
               ),
             ),
@@ -244,14 +248,6 @@ class UserProfileDetail extends StatelessWidget {
               icon: const Icon(Icons.arrow_back),
               onPressed: () => Navigator.of(context).pop(),
             ),
-            actions: [
-              IconButton(
-                icon: const Icon(Icons.share),
-                onPressed: () {
-                  // Share profile functionality
-                },
-              ),
-            ],
           ),
           SliverToBoxAdapter(
             child: Padding(

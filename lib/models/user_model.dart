@@ -53,22 +53,41 @@ class User {
   }
 
   factory User.fromFirestore(DocumentSnapshot doc) {
-    Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
-    return User(
-      id: doc.id,
-      name: data['name'] ?? '',
-      age: data['age'] ?? 25,
-      bio: data['bio'] ?? '',
-      imageUrls: List<String>.from(data['imageUrls'] ?? []),
-      interests: List<String>.from(data['interests'] ?? []),
-      location: data['location'] ?? '',
-      geoPoint: data['geoPoint'],
-      gender: data['gender'] ?? '',
-      lookingFor: data['lookingFor'] ?? '',
-      distance: data['distance'] ?? 50,
-      ageRangeStart: data['ageRangeStart'] ?? 18,
-      ageRangeEnd: data['ageRangeEnd'] ?? 50,
-    );
+    try {
+      Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+
+      // Print the raw data for debugging
+      print('Raw user data for ${doc.id}: $data');
+
+      // Handle potentially missing fields
+      return User(
+        id: doc.id,
+        name: data['name'] ?? 'Unknown',
+        age: data['age'] ?? 25,
+        bio: data['bio'] ?? '',
+        imageUrls: List<String>.from(data['imageUrls'] ?? []),
+        interests: List<String>.from(data['interests'] ?? []),
+        location: data['location'] ?? 'Unknown',
+        geoPoint: data['geoPoint'],
+        gender: data['gender'] ?? '',
+        lookingFor: data['lookingFor'] ?? '',
+        distance: data['distance'] ?? 50,
+        ageRangeStart: data['ageRangeStart'] ?? 18,
+        ageRangeEnd: data['ageRangeEnd'] ?? 50,
+      );
+    } catch (e) {
+      print('Error parsing user data for ${doc.id}: $e');
+      // Return a default user in case of parsing error
+      return User(
+        id: doc.id,
+        name: 'Error User',
+        age: 0,
+        bio: 'Error loading user data',
+        imageUrls: [],
+        interests: [],
+        location: 'Unknown',
+      );
+    }
   }
 
   Map<String, dynamic> toJson() {

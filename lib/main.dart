@@ -1,5 +1,8 @@
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:new_tinder_clone/screens/Nearby_Users_Screen.dart';
+import 'package:new_tinder_clone/screens/debug_screen.dart';
+import 'package:new_tinder_clone/screens/nearby_users_screen.dart';
+import 'package:new_tinder_clone/services/firestore_service.dart';
 import 'package:new_tinder_clone/services/location_service.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -22,15 +25,58 @@ import 'package:flutter/cupertino.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+// In main.dart after Firebase.initializeApp()
+  final firestoreService = FirestoreService();
+  await firestoreService.verifyFirestoreConnection();
+  await firestoreService.createTestUsersIfNeeded();
+
+  // Add debug print to confirm Firebase initialization
+  print('Firebase initialized successfully');
 
   final notificationsService = NotificationsService();
   await notificationsService.initialize();
 
   // Initialize location services
   final locationService = LocationService();
+// In main.dart
+
+  // In main.dart, after Firebase initialization
+  void ensureUserAuthenticated() async {
+    try {
+      final authProvider = FirebaseAuth.instance;
+      final currentUser = authProvider.currentUser;
+
+      if (currentUser == null) {
+        print('No user authenticated, attempting anonymous sign-in for testing');
+
+        // For testing purposes, sign in anonymously
+        final userCredential = await authProvider.signInAnonymously();
+        print('Anonymous sign-in successful: ${userCredential.user?.uid}');
+
+        // Create a basic profile for this anonymous user
+        if (userCredential.user != null) {
+          final firestoreService = FirestoreService();
+          await firestoreService.createNewUser(
+              userCredential.user!.uid,
+              'Anonymous User',
+              'anonymous@example.com'
+          );
+        }
+      } else {
+        print('User already authenticated: ${currentUser.uid}');
+      }
+    } catch (e) {
+      print('ERROR during authentication check: $e');
+    }
+  }
+
+// Call this function after Firebase initialization
+  ensureUserAuthenticated();
 
   runApp(const MyApp());
 }
+
+
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -54,6 +100,23 @@ class MyApp extends StatelessWidget {
             elevation: 1,
             centerTitle: true,
           ),
+          cardTheme: CardTheme(
+            elevation: 3,
+            shape: RoundedRectangleBorder(
+              borderRadius: BorderRadius.circular(16),
+            ),
+            margin: const EdgeInsets.symmetric(vertical: 8, horizontal: 0),
+          ),
+          elevatedButtonTheme: ElevatedButtonThemeData(
+            style: ElevatedButton.styleFrom(
+              backgroundColor: Colors.red,
+              foregroundColor: Colors.white,
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(30),
+              ),
+              padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+            ),
+          ),
           pageTransitionsTheme: const PageTransitionsTheme(
             builders: {
               TargetPlatform.android: CupertinoPageTransitionsBuilder(),
@@ -68,6 +131,7 @@ class MyApp extends StatelessWidget {
           '/chat': (context) => const ChatScreen(),
           '/photoManager': (context) => const PhotoManagerScreen(),
           '/filters': (context) => const FiltersScreen(),
+          '/debug': (context) => const DebugScreen(), // Add this line
         },
       ),
     );
@@ -111,8 +175,12 @@ class _MainScreenState extends State<MainScreen> {
         await locationService.updateUserLocation(userId);
       }
 
-      // Load potential matches
-      userProvider.loadPotentialMatches();
+      // Load potential matches and matches
+      await userProvider.loadPotentialMatches();
+      await userProvider.loadMatches();
+
+      // Start listening to match updates
+      userProvider.startMatchesStream();
     });
   }
 
@@ -121,7 +189,6 @@ class _MainScreenState extends State<MainScreen> {
     _pageController.dispose();
     super.dispose();
   }
-
 
   @override
   Widget build(BuildContext context) {
@@ -164,17 +231,6 @@ class _MainScreenState extends State<MainScreen> {
           ),
         ],
       ),
-      floatingActionButton: _currentIndex == 0 ? FloatingActionButton(
-        onPressed: () {
-          Navigator.of(context).push(
-            MaterialPageRoute(
-              builder: (context) => const NearbyUsersScreen(),
-            ),
-          );
-        },
-        backgroundColor: Colors.red,
-        child: const Icon(Icons.location_on),
-      ) : null,
     );
   }
 }
