@@ -18,7 +18,6 @@ class ModernChatScreen extends StatefulWidget {
 
 class _ModernChatScreenState extends State<ModernChatScreen> {
   final _messageController = TextEditingController();
-  late MessageProvider _messageProvider;
   User? _matchedUser;
   bool _isLoading = true;
   bool _isSending = false;
@@ -26,7 +25,6 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
   @override
   void initState() {
     super.initState();
-    _messageProvider = MessageProvider();
 
     // Use post-frame callback to ensure we have route arguments
     WidgetsBinding.instance.addPostFrameCallback((_) {
@@ -37,15 +35,18 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
   @override
   void dispose() {
     _messageController.dispose();
-    _messageProvider.stopMessagesStream();
+    // Stop the messages stream when leaving the chat screen
+    Provider.of<MessageProvider>(context, listen: false).stopMessagesStream();
     super.dispose();
   }
 
   Future<void> _loadMessages() async {
     try {
+      print("Attempting to load messages");
       // Get matched user from route arguments with null safety
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args == null) {
+        print("No arguments passed to ModernChatScreen");
         // Handle case when no arguments are passed
         if (mounted) {
           setState(() {
@@ -67,8 +68,12 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
         _isLoading = true;
       });
 
-      // Load messages for this match
-      await _messageProvider.loadMessages(_matchedUser!.id);
+      print("Matched user ID: ${_matchedUser!.id}, Name: ${_matchedUser!.name}");
+
+      // Load messages for this match using the Provider
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      await messageProvider.loadMessages(_matchedUser!.id);
+      print("Messages loaded successfully");
 
       if (mounted) {
         setState(() {
@@ -104,20 +109,33 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
     _messageController.clear();
 
     // Send the message
-    bool success = await _messageProvider.sendMessage(
-        _matchedUser!.id,
-        messageText
-    );
+    try {
+      final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+      bool success = await messageProvider.sendMessage(_matchedUser!.id, messageText);
 
-    if (mounted) {
-      setState(() {
-        _isSending = false;
-      });
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
 
-      if (!success) {
+        if (!success) {
+          ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Failed to send message. Please try again.'),
+                backgroundColor: AppColors.error,
+              )
+          );
+        }
+      }
+    } catch (e) {
+      print("Error sending message: $e");
+      if (mounted) {
+        setState(() {
+          _isSending = false;
+        });
         ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Failed to send message. Please try again.'),
+            SnackBar(
+              content: Text('Error: $e'),
               backgroundColor: AppColors.error,
             )
         );
@@ -127,142 +145,175 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
 
   @override
   Widget build(BuildContext context) {
-    // If still loading and no matched user, show loading screen
-    if (_matchedUser == null) {
+    try {
+      // If still loading and no matched user, show loading screen
+      if (_matchedUser == null) {
+        return Scaffold(
+          appBar: AppBar(
+            backgroundColor: Colors.white,
+            elevation: 0,
+            leading: IconButton(
+              icon: const Icon(Icons.arrow_back_ios, size: 20),
+              onPressed: () => Navigator.of(context).pop(),
+              color: AppColors.text,
+            ),
+            title: const Text('Chat'),
+          ),
+          body: const Center(
+            child: LoadingIndicator(
+              type: LoadingIndicatorType.circular,
+              message: 'Loading conversation...',
+            ),
+          ),
+        );
+      }
+
       return Scaffold(
         appBar: AppBar(
+          elevation: 1,
           backgroundColor: Colors.white,
-          elevation: 0,
+          foregroundColor: AppColors.text,
           leading: IconButton(
             icon: const Icon(Icons.arrow_back_ios, size: 20),
             onPressed: () => Navigator.of(context).pop(),
-            color: AppColors.text,
           ),
-          title: const Text('Chat'),
+          title: Row(
+            children: [
+              Hero(
+                tag: 'avatar_${_matchedUser!.id}',
+                child: CircleAvatar(
+                  backgroundImage: NetworkImage(_matchedUser!.imageUrls[0]),
+                  radius: 18,
+                ),
+              ),
+              const SizedBox(width: 12),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      _matchedUser!.name,
+                      style: const TextStyle(
+                        fontSize: 16,
+                        fontWeight: FontWeight.bold,
+                      ),
+                      overflow: TextOverflow.ellipsis,
+                    ),
+                    Text(
+                      'Online now',
+                      style: TextStyle(
+                        fontSize: 12,
+                        color: AppColors.secondary,
+                        fontWeight: FontWeight.normal,
+                      ),
+                    ),
+                  ],
+                ),
+              ),
+            ],
+          ),
+          actions: [
+            IconButton(
+              icon: const Icon(Icons.more_vert),
+              onPressed: () {
+                // Show options menu
+                showModalBottomSheet(
+                  context: context,
+                  builder: (context) => SafeArea(
+                    child: Column(
+                      mainAxisSize: MainAxisSize.min,
+                      children: [
+                        ListTile(
+                          leading: const Icon(Icons.person, color: AppColors.primary),
+                          title: const Text('View Profile'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Navigate to user profile
+                          },
+                        ),
+                        ListTile(
+                          leading: const Icon(Icons.block, color: AppColors.error),
+                          title: const Text('Unmatch'),
+                          onTap: () {
+                            Navigator.pop(context);
+                            // Show unmatch confirmation
+                          },
+                        ),
+                      ],
+                    ),
+                  ),
+                );
+              },
+            ),
+          ],
         ),
-        body: const Center(
-          child: LoadingIndicator(
-            type: LoadingIndicatorType.circular,
-            message: 'Loading conversation...',
+        body: Column(
+          children: [
+            Expanded(
+              child: _isLoading
+                  ? const Center(
+                child: LoadingIndicator(
+                  type: LoadingIndicatorType.circular,
+                ),
+              )
+                  : _buildChatMessages(),
+            ),
+            _buildMessageInput(),
+          ],
+        ),
+      );
+    } catch (e) {
+      print("Error in build method: $e");
+      return Scaffold(
+        appBar: AppBar(
+          title: const Text('Error'),
+          leading: IconButton(
+            icon: const Icon(Icons.arrow_back),
+            onPressed: () => Navigator.of(context).pop(),
+          ),
+        ),
+        body: Center(
+          child: Padding(
+            padding: const EdgeInsets.all(16.0),
+            child: Column(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Icon(Icons.error_outline, size: 80, color: AppColors.error),
+                const SizedBox(height: 24),
+                const Text(
+                  'An error occurred',
+                  style: TextStyle(fontSize: 20, fontWeight: FontWeight.bold),
+                ),
+                const SizedBox(height: 16),
+                Text('Error details: $e'),
+                const SizedBox(height: 24),
+                ElevatedButton(
+                  onPressed: () => Navigator.of(context).pop(),
+                  child: const Text('Go Back'),
+                ),
+              ],
+            ),
           ),
         ),
       );
     }
-
-    return Scaffold(
-      appBar: AppBar(
-        elevation: 1,
-        backgroundColor: Colors.white,
-        foregroundColor: AppColors.text,
-        leading: IconButton(
-          icon: const Icon(Icons.arrow_back_ios, size: 20),
-          onPressed: () => Navigator.of(context).pop(),
-        ),
-        title: Row(
-          children: [
-            Hero(
-              tag: 'avatar_${_matchedUser!.id}',
-              child: CircleAvatar(
-                backgroundImage: NetworkImage(_matchedUser!.imageUrls[0]),
-                radius: 18,
-              ),
-            ),
-            const SizedBox(width: 12),
-            Expanded(
-              child: Column(
-                crossAxisAlignment: CrossAxisAlignment.start,
-                children: [
-                  Text(
-                    _matchedUser!.name,
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                    ),
-                    overflow: TextOverflow.ellipsis,
-                  ),
-                  Text(
-                    'Online now',
-                    style: TextStyle(
-                      fontSize: 12,
-                      color: AppColors.secondary,
-                      fontWeight: FontWeight.normal,
-                    ),
-                  ),
-                ],
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          IconButton(
-            icon: const Icon(Icons.more_vert),
-            onPressed: () {
-              // Show options menu
-              showModalBottomSheet(
-                context: context,
-                builder: (context) => SafeArea(
-                  child: Column(
-                    mainAxisSize: MainAxisSize.min,
-                    children: [
-                      ListTile(
-                        leading: const Icon(Icons.person, color: AppColors.primary),
-                        title: const Text('View Profile'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          // Navigate to user profile
-                        },
-                      ),
-                      ListTile(
-                        leading: const Icon(Icons.block, color: AppColors.error),
-                        title: const Text('Unmatch'),
-                        onTap: () {
-                          Navigator.pop(context);
-                          // Show unmatch confirmation
-                        },
-                      ),
-                    ],
-                  ),
-                ),
-              );
-            },
-          ),
-        ],
-      ),
-      body: Column(
-        children: [
-          Expanded(
-            child: _isLoading
-                ? const Center(
-              child: LoadingIndicator(
-                type: LoadingIndicatorType.circular,
-              ),
-            )
-                : _buildChatMessages(),
-          ),
-          _buildMessageInput(),
-        ],
-      ),
-    );
   }
 
   Widget _buildChatMessages() {
-    final messages = _messageProvider.messages;
+    return Consumer<MessageProvider>(
+      builder: (context, messageProvider, _) {
+        final messages = messageProvider.messages;
 
-    if (messages.isEmpty) {
-      return _buildEmptyChatView();
-    }
-
-    return AnimatedBuilder(
-      animation: _messageProvider,
-      builder: (context, _) {
-        final updatedMessages = _messageProvider.messages;
+        if (messages.isEmpty) {
+          return _buildEmptyChatView();
+        }
 
         return ListView.builder(
           padding: const EdgeInsets.all(16),
           reverse: true,
-          itemCount: updatedMessages.length,
+          itemCount: messages.length,
           itemBuilder: (context, index) {
-            final message = updatedMessages[index];
+            final message = messages[index];
             final isMe = message.senderId == Provider.of<AppAuthProvider>(context, listen: false).currentUserId;
 
             return _buildMessageBubble(message, isMe);

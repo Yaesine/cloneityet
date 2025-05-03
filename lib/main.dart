@@ -1,5 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
+import 'package:new_tinder_clone/providers/message_provider.dart';
 import 'package:new_tinder_clone/screens/debug_screen.dart';
 import 'package:new_tinder_clone/screens/modern_chat_screen.dart';
 import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
@@ -92,6 +93,7 @@ class MyApp extends StatelessWidget {
       providers: [
         ChangeNotifierProvider(create: (_) => AppAuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
+        ChangeNotifierProvider(create: (_) => MessageProvider()), // Add this line
       ],
       child: MaterialApp(
         title: 'Flutter Tinder Clone',
@@ -103,7 +105,7 @@ class MyApp extends StatelessWidget {
           '/chat': (context) => const ModernChatScreen(),
           '/photoManager': (context) => const PhotoManagerScreen(),
           '/filters': (context) => const FiltersScreen(),
-          '/debug': (context) => const DebugScreen(), // Add this line
+          '/debug': (context) => const DebugScreen(),
         },
       ),
     );
