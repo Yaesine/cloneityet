@@ -10,7 +10,7 @@ class AppAuthProvider with ChangeNotifier {
   final NotificationsService _notificationsService = NotificationsService();
   User? _user;
   String? _errorMessage;
-  bool _isLoading = false;
+  bool _isLoading = true;
 
   // Getters
   User? get user => _user;

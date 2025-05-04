@@ -3,10 +3,12 @@ import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../models/user_model.dart';
 import '../models/match_model.dart';
 import '../models/message_model.dart';
+import 'notification_manager.dart';
 
 class FirestoreService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
   final auth.FirebaseAuth _auth = auth.FirebaseAuth.instance;
+  final NotificationManager _notificationManager = NotificationManager();
 
   // Collection references
   final CollectionReference _usersCollection =
@@ -293,6 +295,8 @@ class FirestoreService {
         'timestamp': Timestamp.now(),
       });
 
+      if (!isLike) return false;
+
       print('${isLike ? "Like" : "Dislike"} recorded from $currentUserId to $swipedUserId');
 
       // If it was a dislike, we don't need to check for a match
@@ -325,6 +329,20 @@ class FirestoreService {
           'timestamp': Timestamp.now(),
           'superLike': isSuperLike,
         });
+
+        // Send match notification
+        DocumentSnapshot currentUserDoc =
+        await _usersCollection.doc(currentUserId).get();
+        Map<String, dynamic>? currentUserData =
+        currentUserDoc.data() as Map<String, dynamic>?;
+        String currentUserName = currentUserData?['name'] ?? 'Someone';
+
+        await _notificationManager.sendMatchNotification(
+            swipedUserId,
+            currentUserName
+        );
+
+
 
         print('Match created between $currentUserId and $swipedUserId');
         return true; // Match created
@@ -428,6 +446,20 @@ class FirestoreService {
         'timestamp': Timestamp.now(),
         'isRead': false,
       });
+
+      // Get sender's name
+      DocumentSnapshot senderDoc =
+      await _usersCollection.doc(currentUserId).get();
+      Map<String, dynamic>? senderData =
+      senderDoc.data() as Map<String, dynamic>?;
+      String senderName = senderData?['name'] ?? 'Someone';
+
+      // Send message notification
+      await _notificationManager.sendMessageNotification(
+          receiverId,
+          senderName,
+          text
+      );
 
       return true;
     } catch (e) {

@@ -244,6 +244,53 @@ class _ModernProfileScreenState extends State<ModernProfileScreen> with SingleTi
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
                     children: [
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        color: Colors.orange.withOpacity(0.1),
+                        child: ListTile(
+                          leading: Icon(Icons.star, color: Colors.orange),
+                          title: Text(
+                            'Get Premium',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.orange,
+                            ),
+                          ),
+                          subtitle: Text('Unlock exclusive features'),
+                          trailing: Icon(Icons.arrow_forward_ios, color: Colors.orange),
+                          onTap: () {
+                            Navigator.of(context).pushNamed('/premium');
+                          },
+                        ),
+                      ),
+                      SizedBox(height: 20),
+
+                      Card(
+                        elevation: 4,
+                        shape: RoundedRectangleBorder(
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        color: Colors.blue.withOpacity(0.1),
+                        child: ListTile(
+                          leading: Icon(Icons.verified_user, color: Colors.blue),
+                          title: Text(
+                            'Verify Your Profile',
+                            style: TextStyle(
+                              fontWeight: FontWeight.bold,
+                              color: Colors.blue,
+                            ),
+                          ),
+                          subtitle: Text('Get a blue checkmark'),
+                          trailing: Icon(Icons.arrow_forward_ios, color: Colors.blue),
+                          onTap: () {
+                            Navigator.of(context).pushNamed('/verification');
+                          },
+                        ),
+                      ),
+                      SizedBox(height: 20),
                       // Bio section
                       _buildSectionCard(
                         title: 'About Me',

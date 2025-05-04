@@ -7,6 +7,7 @@ import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 import '../services/firestore_service.dart';
 import '../services/location_service.dart';
+import '../services/profile_view_tracker.dart';
 import '../utils/custom_page_route.dart';
 import 'chat_screen.dart';
 import 'modern_chat_screen.dart';
@@ -233,6 +234,10 @@ class UserProfileDetail extends StatelessWidget {
 
   @override
   Widget build(BuildContext context) {
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      final tracker = ProfileViewTracker();
+      tracker.trackProfileView(user.id);
+    });
     return Scaffold(
       body: CustomScrollView(
         slivers: [

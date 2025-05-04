@@ -2,6 +2,7 @@
 import 'package:flutter/material.dart';
 import 'dart:math';
 import '../models/user_model.dart';
+import '../services/profile_view_tracker.dart';
 import '../theme/app_theme.dart';
 
 class ModernSwipeCard extends StatefulWidget {
@@ -80,6 +81,8 @@ class _ModernSwipeCardState extends State<ModernSwipeCard> with SingleTickerProv
           setState(() {
             _showInfo = !_showInfo;
           });
+          final tracker = ProfileViewTracker();
+          tracker.trackProfileView(widget.user.id);
         }
       },
       child: Opacity(

@@ -84,6 +84,29 @@ class _ModernHomeScreenState extends State<ModernHomeScreen> {
           ],
         ),
         actions: [
+
+          IconButton(
+            icon: const Icon(Icons.star, color: Colors.amber),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/achievements');
+            },
+            tooltip: 'Achievements',
+          ),
+          IconButton(
+            icon: const Icon(Icons.bolt, color: Colors.orange),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/boost');
+            },
+            tooltip: 'Boost',
+          ),
+          IconButton(
+            icon: const Icon(Icons.work_history, color: Colors.pink),
+            onPressed: () {
+              Navigator.of(context).pushNamed('/streak');
+            },
+            tooltip: 'Daily Streak',
+          ),
+
           // Add nearby users button
           IconButton(
             icon: const Icon(Icons.location_on),
