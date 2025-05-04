@@ -1,5 +1,4 @@
-// lib/services/notification_manager.dart
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
+// lib/services/notification_manager.dart - Complete Firebase only implementation
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -12,15 +11,11 @@ class NotificationManager {
   NotificationManager._internal();
 
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
-  final FlutterLocalNotificationsPlugin _flutterLocalNotifications =
-  FlutterLocalNotificationsPlugin();
-
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
   // Initialize notifications
   Future<void> initialize() async {
     await _requestPermission();
-    await _initializeLocalNotifications();
     await _configureFirebaseMessaging();
     await _saveTokenToFirestore();
   }
@@ -38,56 +33,6 @@ class NotificationManager {
     );
 
     print('User granted permission: ${settings.authorizationStatus}');
-  }
-
-  // Initialize local notifications for version 9.6.1
-  Future<void> _initializeLocalNotifications() async {
-    const AndroidInitializationSettings initializationSettingsAndroid =
-    AndroidInitializationSettings('@mipmap/ic_launcher');
-
-    const IOSInitializationSettings initializationSettingsIOS =
-    IOSInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-
-    const InitializationSettings initializationSettings =
-    InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _flutterLocalNotifications.initialize(
-      initializationSettings,
-      onSelectNotification: _onSelectNotification,
-    );
-  }
-
-  // Handle notification tap
-  Future<void> _onSelectNotification(String? payload) async {
-    if (payload != null) {
-      final parts = payload.split('|');
-      if (parts.length == 2) {
-        final type = parts[0];
-        final id = parts[1];
-
-        navigatorKey.currentState?.pushNamed(getRouteForType(type), arguments: id);
-      }
-    }
-  }
-
-  String getRouteForType(String type) {
-    switch (type) {
-      case 'match':
-        return '/matches';
-      case 'message':
-        return '/chat';
-      case 'profile_view':
-        return '/profile';
-      default:
-        return '/main';
-    }
   }
 
   // Configure Firebase messaging
@@ -108,12 +53,29 @@ class NotificationManager {
     print('Message data: ${message.data}');
 
     if (message.notification != null) {
-      await _showLocalNotification(
-        title: message.notification!.title ?? 'New Notification',
-        body: message.notification!.body ?? '',
-        payload: '${message.data['type']}|${message.data['id']}',
-      );
+      print('Message also contained a notification: ${message.notification}');
+      _showInAppNotification(message);
     }
+  }
+
+  // Show in-app notification
+  void _showInAppNotification(RemoteMessage message) {
+    final context = navigatorKey.currentContext;
+    if (context == null) return;
+
+    showDialog(
+      context: context,
+      builder: (_) => AlertDialog(
+        title: Text(message.notification?.title ?? 'Notification'),
+        content: Text(message.notification?.body ?? ''),
+        actions: [
+          TextButton(
+            onPressed: () => Navigator.of(context).pop(),
+            child: const Text('OK'),
+          ),
+        ],
+      ),
+    );
   }
 
   // Handle notification tap
@@ -129,38 +91,17 @@ class NotificationManager {
     );
   }
 
-  // Show local notification for version 9.6.1
-  Future<void> _showLocalNotification({
-    required String title,
-    required String body,
-    String? payload,
-  }) async {
-    const AndroidNotificationDetails androidPlatformChannelSpecifics =
-    AndroidNotificationDetails(
-      'tinder_clone_channel',
-      'Tinder Clone Notifications',
-      channelDescription: 'Channel for Tinder Clone notifications',  // ✅ Use named parameter
-      importance: Importance.max,
-      priority: Priority.high,
-      ticker: 'ticker',
-      showWhen: true,
-    );
-
-    const IOSNotificationDetails iOSPlatformChannelSpecifics =
-    IOSNotificationDetails();
-
-    const NotificationDetails platformChannelSpecifics = NotificationDetails(
-      android: androidPlatformChannelSpecifics,
-      iOS: iOSPlatformChannelSpecifics,
-    );
-
-    await _flutterLocalNotifications.show(
-      DateTime.now().millisecondsSinceEpoch ~/ 1000,
-      title,
-      body,
-      platformChannelSpecifics,
-      payload: payload,
-    );
+  String getRouteForType(String type) {
+    switch (type) {
+      case 'match':
+        return '/matches';
+      case 'message':
+        return '/chat';
+      case 'profile_view':
+        return '/profile';
+      default:
+        return '/main';
+    }
   }
 
   // Save FCM token to Firestore

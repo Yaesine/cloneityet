@@ -38,19 +38,26 @@ import 'providers/user_provider.dart';
 import 'providers/app_auth_provider.dart';
 import 'package:flutter/cupertino.dart';
 
+// Remove this top-level function completely - we'll handle it differently
+// @pragma('vm:entry-point')
+// Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+//   // Firebase.initializeApp();
+//   print('Handling a background message: ${message.messageId}');
+// }
+
 void main() async {
-  FirebaseMessaging.onBackgroundMessage(firebaseMessagingBackgroundHandler);
+  WidgetsFlutterBinding.ensureInitialized();
+  await Firebase.initializeApp();
+
+  // Initialize notification manager after Firebase is initialized
   final notificationManager = NotificationManager();
   await notificationManager.initialize();
 
-  WidgetsFlutterBinding.ensureInitialized();
-  await Firebase.initializeApp();
-// In main.dart after Firebase.initializeApp()
+  // Initialize Firebase services
   final firestoreService = FirestoreService();
   await firestoreService.verifyFirestoreConnection();
   await firestoreService.createTestUsersIfNeeded();
 
-  // Add debug print to confirm Firebase initialization
   print('Firebase initialized successfully');
 
   final notificationsService = NotificationsService();
@@ -58,9 +65,8 @@ void main() async {
 
   // Initialize location services
   final locationService = LocationService();
-// In main.dart
 
-  // In main.dart, after Firebase initialization
+  // Ensure user authenticated
   void ensureUserAuthenticated() async {
     try {
       final authProvider = FirebaseAuth.instance;
@@ -68,12 +74,9 @@ void main() async {
 
       if (currentUser == null) {
         print('No user authenticated, attempting anonymous sign-in for testing');
-
-        // For testing purposes, sign in anonymously
         final userCredential = await authProvider.signInAnonymously();
         print('Anonymous sign-in successful: ${userCredential.user?.uid}');
 
-        // Create a basic profile for this anonymous user
         if (userCredential.user != null) {
           final firestoreService = FirestoreService();
           await firestoreService.createNewUser(
@@ -90,7 +93,6 @@ void main() async {
     }
   }
 
-// Call this function after Firebase initialization
   ensureUserAuthenticated();
 
   runApp(const MyApp());
@@ -104,7 +106,7 @@ class AuthWrapper extends StatelessWidget {
     return Consumer<AppAuthProvider>(
       builder: (context, authProvider, _) {
         if (authProvider.isLoading) {
-          return const SplashScreen(); // Show splash while checking auth
+          return const SplashScreen();
         }
 
         if (authProvider.isLoggedIn) {
@@ -117,49 +119,45 @@ class AuthWrapper extends StatelessWidget {
   }
 }
 
-// In your main.dart
-// In your main.dart
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
 
   @override
   Widget build(BuildContext context) {
-    return MultiProvider(  // Wrap with MultiProvider
+    return MultiProvider(
       providers: [
         ChangeNotifierProvider(create: (_) => AppAuthProvider()),
         ChangeNotifierProvider(create: (_) => UserProvider()),
         ChangeNotifierProvider(create: (_) => MessageProvider()),
       ],
-    child: NotificationHandler(  // Wrap with NotificationHandler
-      child: MaterialApp(
-        navigatorKey: navigatorKey, // This will now work
-        title: 'Flutter Tinder Clone',
-        theme: AppTheme.lightTheme,
-        home: const AuthWrapper(),  // Changed from SplashScreen
-        routes: {
-          '/login': (context) => const LoginScreen(),
-          '/main': (context) => const MainScreen(),
-          '/chat': (context) => const ModernChatScreen(),
-          '/photoManager': (context) => const PhotoManagerScreen(),
-          '/filters': (context) => const FiltersScreen(),
-          '/debug': (context) => const DebugScreen(),
-
-          // Add these new routes
-          '/boost': (context) => BoostScreen(),
-          '/premium': (context) => PremiumScreen(),
-          '/achievements': (context) => AchievementsScreen(
-            unlockedBadges: [], // You'll need to fetch these
-            availableBadges: [], // You'll need to fetch these
-          ),
-          '/streak': (context) => StreakScreen(
-            streakCount: 0, // You'll need to fetch this
-            rewindCount: 1, // Daily rewind count
-            superLikeCount: 1, // Daily super likes
-          ),
-          '/verification': (context) => ProfileVerificationScreen(),
-        },
-    ),
-    ), // This closing parenthesis was missing
+      child: NotificationHandler(
+        child: MaterialApp(
+          navigatorKey: navigatorKey,
+          title: 'Flutter Tinder Clone',
+          theme: AppTheme.lightTheme,
+          home: const AuthWrapper(),
+          routes: {
+            '/login': (context) => const LoginScreen(),
+            '/main': (context) => const MainScreen(),
+            '/chat': (context) => const ModernChatScreen(),
+            '/photoManager': (context) => const PhotoManagerScreen(),
+            '/filters': (context) => const FiltersScreen(),
+            '/debug': (context) => const DebugScreen(),
+            '/boost': (context) => BoostScreen(),
+            '/premium': (context) => PremiumScreen(),
+            '/achievements': (context) => AchievementsScreen(
+              unlockedBadges: [],
+              availableBadges: [],
+            ),
+            '/streak': (context) => StreakScreen(
+              streakCount: 0,
+              rewindCount: 1,
+              superLikeCount: 1,
+            ),
+            '/verification': (context) => ProfileVerificationScreen(),
+          },
+        ),
+      ),
     );
   }
 }
@@ -175,7 +173,7 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
-    const ModernHomeScreen(), // Replace HomeScreen with ModernHomeScreen
+    const ModernHomeScreen(),
     const MatchesScreen(),
     const ModernProfileScreen(),
   ];
@@ -185,8 +183,6 @@ class _MainScreenState extends State<MainScreen> {
   @override
   void initState() {
     super.initState();
-
-    // Load user data and update location when app starts
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _initializeNotificationHandler();
 
@@ -197,33 +193,26 @@ class _MainScreenState extends State<MainScreen> {
       await userProvider.forceSyncCurrentUser();
       await userProvider.loadCurrentUser();
 
-      // Get current user ID
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
       final userId = authProvider.currentUserId;
 
       if (userId.isNotEmpty) {
-        // Update user location
         final locationService = LocationService();
         await locationService.updateUserLocation(userId);
       }
 
-      // Load potential matches and matches
       await userProvider.loadPotentialMatches();
       await userProvider.loadMatches();
-
-      // Start listening to match updates
       userProvider.startMatchesStream();
     });
   }
 
   void _initializeNotificationHandler() {
-    // FCM token handling
     FirebaseMessaging.instance.onTokenRefresh.listen((token) {
       print('FCM Token: $token');
       _saveTokenToFirestore(token);
     });
 
-    // Foreground message handling
     FirebaseMessaging.onMessage.listen((RemoteMessage message) {
       _showInAppNotification(message);
     });
