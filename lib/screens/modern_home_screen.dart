@@ -153,44 +153,55 @@ class _ModernHomeScreenState extends State<ModernHomeScreen> {
                 );
               }).toList(),
 
-              // Control buttons at the bottom - improved positioning
-              if (profiles.isNotEmpty)
-                Align(
-                  alignment: Alignment.bottomCenter,
-                  child: Container(
+              // Replace the button section in your build method with this:
+
+              // Control buttons at the bottom
+                    if (profiles.isNotEmpty)
+                    Positioned(
+                    bottom: 0,
+                    left: 0,
+                    right: 0,
+                    child: Container(
                     padding: const EdgeInsets.only(bottom: 40, left: 20, right: 20),
                     child: Row(
-                      mainAxisAlignment: MainAxisAlignment.spaceEvenly,
-                      children: [
-                        // Dislike button
-                        _buildActionButton(
-                          Icons.close,
-                          Colors.red,
-                              () => _handleSwipeLeft(profiles.last.id),
-                          size: 28,
-                        ),
-
-                        // Super like button
-                        _buildActionButton(
-                          Icons.star,
-                          Colors.blue,
-                              () => _handleSuperLike(profiles.last.id),
-                          size: 32,
-                          hasBorder: true,
-                        ),
-
-                        // Like button
-                        _buildActionButton(
-                          Icons.favorite,
-                          Colors.green,
-                              () => _handleSwipeRight(profiles.last.id),
-                          size: 28,
-                        ),
-                      ],
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                    // Dislike button (X) - Red background
+                    _buildActionButton(
+                    Icons.close,
+                    Colors.red,
+                    () => _handleSwipeLeft(profiles.last.id),
+                    backgroundColor: Colors.red.withOpacity(0.9),
+                    iconColor: Colors.white,
                     ),
+
+                    const SizedBox(width: 40), // Space between buttons
+
+                // Super like button (Star) - Blue background
+                _buildActionButton(
+                Icons.star,
+                Colors.blue,
+                () => _handleSuperLike(profiles.last.id),
+                backgroundColor: Colors.blue,
+                iconColor: Colors.white,
+                size: 32,
+                ),
+
+                const SizedBox(width: 40), // Space between buttons
+
+                // Like button (Heart) - Green background
+                _buildActionButton(
+                Icons.favorite,
+                Colors.green,
+                () => _handleSwipeRight(profiles.last.id),
+                backgroundColor: Colors.green,
+                iconColor: Colors.white,
+                ),
+                    ],
                   ),
                 ),
-            ],
+                    ),
+                    ],
           );
         },
       ),
@@ -202,34 +213,29 @@ class _ModernHomeScreenState extends State<ModernHomeScreen> {
       Color color,
       VoidCallback onTap, {
         double size = 24,
-        bool hasBorder = false,
+        Color? backgroundColor,
+        Color? iconColor,
       }) {
-    return Material(
-      color: Colors.transparent,
-      child: InkWell(
-        onTap: onTap,
-        customBorder: const CircleBorder(),
-        child: Container(
-          width: 70,
-          height: 70,
-          decoration: BoxDecoration(
-            color: Colors.white,
-            shape: BoxShape.circle,
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black.withOpacity(0.1),
-                blurRadius: 8,
-                spreadRadius: 2,
-                offset: const Offset(0, 1),
-              ),
-            ],
-            border: hasBorder ? Border.all(color: color, width: 2) : null,
-          ),
-          child: Icon(
-            icon,
-            color: color,
-            size: size,
-          ),
+    return GestureDetector(
+      onTap: onTap,
+      child: Container(
+        width: 60,
+        height: 60,
+        decoration: BoxDecoration(
+          color: backgroundColor ?? Colors.white,
+          shape: BoxShape.circle,
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.2),
+              blurRadius: 8,
+              spreadRadius: 1,
+            ),
+          ],
+        ),
+        child: Icon(
+          icon,
+          color: iconColor ?? color,
+          size: size,
         ),
       ),
     );
