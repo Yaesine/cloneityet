@@ -1,12 +1,11 @@
-package com.example.new_tinder_clone
+    package com.example.new_tinder_clone
 
-import android.os.Bundle
-import io.flutter.embedding.android.FlutterActivity
-import com.facebook.FacebookSdk
+    import android.os.Bundle
+    import io.flutter.embedding.android.FlutterActivity
 
-class MainActivity: FlutterActivity() {
-    override fun onCreate(savedInstanceState: Bundle?) {
-        super.onCreate(savedInstanceState)
+    class MainActivity: FlutterActivity() {
+        override fun onCreate(savedInstanceState: Bundle?) {
+            super.onCreate(savedInstanceState)
 
+        }
     }
-}

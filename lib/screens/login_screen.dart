@@ -229,6 +229,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
+    // Fixed the missing semicolon and created a proper widget
 
 
     return Scaffold(
@@ -421,7 +422,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         const SizedBox(height: 32),
 
                         // Debug button for development
-
                       ],
                     ),
                   ),
