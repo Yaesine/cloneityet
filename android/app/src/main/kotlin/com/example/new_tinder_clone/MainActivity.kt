@@ -1,4 +1,4 @@
-    package com.example.new_tinder_clone
+package com.example.new_tinder_clone
 
     import android.os.Bundle
     import io.flutter.embedding.android.FlutterActivity
