@@ -41,11 +41,18 @@ class AppAuthProvider with ChangeNotifier {
   // Google Sign In - Properly implemented
   Future<bool> signInWithGoogle() async {
     try {
+      // Configure Google Sign In with clientId
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // First, sign out any existing account
+      await googleSignIn.signOut();
+
       // Trigger the authentication flow
-      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+      final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
         // The user canceled the sign-in
+        print('Google sign in cancelled by user');
         return false;
       }
 
@@ -83,8 +90,16 @@ class AppAuthProvider with ChangeNotifier {
 
       return false;
     } catch (e) {
-      print('Google sign in error: $e');
+      print('Google sign in error: ${e.toString()}');
       _errorMessage = e.toString();
+
+      // Handle specific error cases
+      if (e.toString().contains('DEVELOPER_ERROR')) {
+        print('Developer error - check SHA certificates and client ID configuration');
+      } else if (e.toString().contains('NETWORK_ERROR')) {
+        print('Network error - check internet connection');
+      }
+
       return false;
     }
   }

@@ -1,7 +1,6 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:new_tinder_clone/providers/message_provider.dart';
 import 'package:new_tinder_clone/screens/achievements_screen.dart';
 import 'package:new_tinder_clone/screens/boost_screen.dart';
@@ -51,13 +50,7 @@ void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
 
-  // Initialize Facebook SDK
-  await FacebookAuth.instance.webAndDesktopInitialize(
-    appId: "YOUR_FACEBOOK_APP_ID", // Replace with your Facebook App ID
-    cookie: true,
-    xfbml: true,
-    version: "v15.0",
-  );
+
 
   // Initialize notification manager after Firebase is initialized
   final notificationManager = NotificationManager();
@@ -77,29 +70,38 @@ void main() async {
   final locationService = LocationService();
 
   // Ensure user authenticated
+  // Ensure user authenticated - Updated version
   void ensureUserAuthenticated() async {
     try {
       final authProvider = FirebaseAuth.instance;
       final currentUser = authProvider.currentUser;
 
       if (currentUser == null) {
-        print('No user authenticated, attempting anonymous sign-in for testing');
-        final userCredential = await authProvider.signInAnonymously();
-        print('Anonymous sign-in successful: ${userCredential.user?.uid}');
-
-        if (userCredential.user != null) {
-          final firestoreService = FirestoreService();
-          await firestoreService.createNewUser(
-              userCredential.user!.uid,
-              'Anonymous User',
-              'anonymous@example.com'
-          );
-        }
+        print('No user authenticated. Launching app without authentication.');
+        // Don't force anonymous sign-in, let the user choose their login method
+        return;
       } else {
         print('User already authenticated: ${currentUser.uid}');
+
+        // Check if user exists in Firestore
+        final firestoreService = FirestoreService();
+        final existingUser = await firestoreService.getUserData(currentUser.uid);
+
+        if (existingUser == null) {
+          print('Creating user profile in Firestore');
+          await firestoreService.createNewUser(
+              currentUser.uid,
+              currentUser.displayName ?? 'User',
+              currentUser.email ?? ''
+          );
+        }
       }
     } catch (e) {
       print('ERROR during authentication check: $e');
+      // Continue launching the app even if there's an error
+      if (e.toString().contains('admin-restricted-operation')) {
+        print('Anonymous authentication is disabled. Please enable it in Firebase Console.');
+      }
     }
   }
 
