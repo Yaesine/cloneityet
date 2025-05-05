@@ -229,15 +229,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
 
-    // Fixed the missing semicolon and created a proper widget
-    Widget debugButton = ElevatedButton(
-      onPressed: _showDebugInfo,
-      style: ElevatedButton.styleFrom(
-        backgroundColor: Colors.grey[300],
-        foregroundColor: Colors.black,
-      ),
-      child: Text('Debug Google Sign In'),
-    );
+
 
     return Scaffold(
       body: Stack(
@@ -429,7 +421,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         const SizedBox(height: 32),
 
                         // Debug button for development
-                        debugButton,
+
                       ],
                     ),
                   ),
