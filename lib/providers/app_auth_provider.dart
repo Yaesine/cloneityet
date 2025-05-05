@@ -39,97 +39,129 @@ class AppAuthProvider with ChangeNotifier {
   }
 
   // Google Sign In - SIMPLIFIED VERSION for fixing the token issue
+  // Google Sign In - FIXED VERSION
   Future<bool> signInWithGoogle() async {
     try {
-      print('Starting Google Sign In...');
+      print('Starting simple Google Sign In...');
 
-      // Create GoogleSignIn instance without clientId (it will use the one from google-services.json)
+      // Create a standard GoogleSignIn instance
       final GoogleSignIn googleSignIn = GoogleSignIn();
 
-      // Sign out any existing account first to get fresh tokens
+      // Clear any existing sign-in
       await googleSignIn.signOut();
 
-      print('Starting Google Sign In flow...');
+      // Start the sign-in flow
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
-
       if (googleUser == null) {
-        print('Google sign in cancelled by user');
+        print('User cancelled Google Sign In');
         return false;
       }
 
-      print('Google sign in successful for: ${googleUser.email}');
+      print('Google Sign In succeeded for user: ${googleUser.email}');
 
-      // Try to get authentication tokens
-      try {
-        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      // Get the auth tokens
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-        print('Got authentication object');
-        print('Access token: ${googleAuth.accessToken != null ? 'Present' : 'Null'}');
-        print('ID token: ${googleAuth.idToken != null ? 'Present' : 'Null'}');
+      // Create Firebase credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
 
-        // Create a new credential
-        final credential = GoogleAuthProvider.credential(
-          accessToken: googleAuth.accessToken,
-          idToken: googleAuth.idToken,
+      // Sign in to Firebase
+      final userCredential = await _auth.signInWithCredential(credential);
+      _user = userCredential.user;
+
+      if (_user != null) {
+        print('Firebase authentication successful: ${_user!.uid}');
+
+        // Create Firestore profile if needed
+        await _firestoreService.createNewUser(
+            _user!.uid,
+            _user!.displayName ?? 'New User',
+            _user!.email ?? ''
         );
 
-        print('Created Firebase credential');
+        // Save FCM token
+        await _notificationsService.saveTokenToDatabase(_user!.uid);
 
-        // Sign in to Firebase with the Google credential
-        final userCredential = await _auth.signInWithCredential(credential);
-        _user = userCredential.user;
+        // Save user ID to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', _user!.uid);
 
-        if (_user != null) {
-          print('Firebase sign in successful: ${_user!.uid}');
-
-          // Create user profile in Firestore if it doesn't exist
-          await _firestoreService.createNewUser(
-              _user!.uid,
-              _user!.displayName ?? 'Anonymous',
-              _user!.email ?? ''
-          );
-
-          // Save token to Firestore
-          await _notificationsService.saveTokenToDatabase(_user!.uid);
-
-          // Save to SharedPreferences
-          final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userId', _user!.uid);
-
-          return true;
-        }
-      } catch (tokenError) {
-        print('Token error: $tokenError');
-
-        // If token error occurs, try to use the current Firebase user if available
-        if (_auth.currentUser != null) {
-          print('Using existing Firebase user despite token error');
-          _user = _auth.currentUser;
-          return true;
-        }
-
-        // If no Firebase user, rethrow the error
-        throw tokenError;
-      }
-
-      return false;
-    } catch (e, stackTrace) {
-      print('=== Google Sign In Error ===');
-      print('Error: $e');
-      print('Stack trace: $stackTrace');
-      _errorMessage = e.toString();
-
-      // Final check - if user is signed in to Firebase despite the error
-      if (_auth.currentUser != null) {
-        print('User is actually signed in despite error');
-        _user = _auth.currentUser;
+        notifyListeners();
         return true;
       }
 
       return false;
+    } catch (e) {
+      print('Google Sign In error: $e');
+      _errorMessage = e.toString();
+      notifyListeners();
+      return false;
     }
   }
+// Add this to your app_auth_provider.dart or any utility class
 
+  Future<Map<String, dynamic>> debugGoogleSignIn() async {
+    final Map<String, dynamic> debugInfo = {};
+
+    try {
+      debugInfo['starting'] = 'Attempting to initialize GoogleSignIn';
+      final GoogleSignIn googleSignIn = GoogleSignIn();
+
+      // Check if GoogleSignIn is configured
+      debugInfo['initialized'] = 'GoogleSignIn initialized';
+
+      // Check current sign in state
+      final isSignedIn = await googleSignIn.isSignedIn();
+      debugInfo['isSignedIn'] = isSignedIn;
+
+      if (isSignedIn) {
+        // Try to get current user
+        final account = await googleSignIn.signInSilently();
+        debugInfo['currentUser'] = account?.email ?? 'No user';
+
+        // Try to get authentication
+        if (account != null) {
+          try {
+            debugInfo['getting_auth'] = 'Attempting to get authentication tokens';
+            final auth = await account.authentication;
+            debugInfo['auth_success'] = 'Got authentication tokens';
+            debugInfo['has_id_token'] = auth.idToken != null;
+            debugInfo['has_access_token'] = auth.accessToken != null;
+          } catch (e) {
+            debugInfo['auth_error'] = e.toString();
+          }
+        }
+      } else {
+        // Try a fresh sign in
+        debugInfo['attempting_signin'] = 'User not signed in, trying fresh sign in';
+        try {
+          final account = await googleSignIn.signIn();
+          debugInfo['signin_result'] = account?.email ?? 'Sign in cancelled';
+
+          if (account != null) {
+            try {
+              debugInfo['getting_fresh_auth'] = 'Getting tokens for fresh sign in';
+              final auth = await account.authentication;
+              debugInfo['fresh_auth_success'] = 'Got fresh authentication tokens';
+              debugInfo['fresh_has_id_token'] = auth.idToken != null;
+              debugInfo['fresh_has_access_token'] = auth.accessToken != null;
+            } catch (e) {
+              debugInfo['fresh_auth_error'] = e.toString();
+            }
+          }
+        } catch (e) {
+          debugInfo['signin_error'] = e.toString();
+        }
+      }
+    } catch (e) {
+      debugInfo['error'] = e.toString();
+    }
+
+    return debugInfo;
+  }
   // Facebook Sign In - Properly implemented
   Future<bool> signInWithFacebook() async {
     try {

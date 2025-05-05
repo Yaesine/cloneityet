@@ -46,6 +46,56 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _animationController.dispose();
     super.dispose();
   }
+// Add this to your _LoginScreenState class
+
+  Future<void> _debugGoogleSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Call the debug function and display results
+      final debugInfo = await _debugGoogleSignIn();
+
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        // Show debug info in an alert dialog
+        showDialog(
+          context: context,
+          builder: (ctx) => AlertDialog(
+            title: Text('Google Sign In Debug Info'),
+            content: SingleChildScrollView(
+              child: ListBody(
+                children: debugInfo.entries.map((entry) =>
+                    Text('${entry.key}: ${entry.value}')
+                ).toList(),
+              ),
+            ),
+            actions: [
+              TextButton(
+                child: Text('OK'),
+                onPressed: () => Navigator.of(ctx).pop(),
+              ),
+            ],
+          ),
+        );
+      }
+    } catch (e) {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(content: Text('Debug error: ${e.toString()}')),
+        );
+      }
+    }
+  }
+
 
   Future<void> _handleGoogleSignIn() async {
     setState(() {
@@ -161,6 +211,14 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
+    ElevatedButton(
+      onPressed: _debugGoogleSignIn,
+      style: ElevatedButton.styleFrom(
+        backgroundColor: Colors.grey[300],
+        foregroundColor: Colors.black,
+      ),
+      child: Text('Debug Google Sign In'),
+    )
 
     return Scaffold(
       body: Stack(
@@ -425,6 +483,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ],
         ),
       ),
+
+
     );
   }
 }
