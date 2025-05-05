@@ -8,6 +8,7 @@ import 'package:new_tinder_clone/screens/debug_screen.dart';
 import 'package:new_tinder_clone/screens/modern_chat_screen.dart';
 import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
 import 'package:new_tinder_clone/screens/nearby_users_screen.dart';
+import 'package:new_tinder_clone/screens/phone_login_screen.dart';
 import 'package:new_tinder_clone/screens/premium_screen.dart';
 import 'package:new_tinder_clone/screens/profile_verification_screen.dart';
 import 'package:new_tinder_clone/screens/streak_screen.dart';
@@ -138,6 +139,7 @@ class MyApp extends StatelessWidget {
           home: const AuthWrapper(),
           routes: {
             '/login': (context) => const LoginScreen(),
+            '/phone-login': (context) => const PhoneLoginScreen(),  // Add this
             '/main': (context) => const MainScreen(),
             '/chat': (context) => const ModernChatScreen(),
             '/photoManager': (context) => const PhotoManagerScreen(),

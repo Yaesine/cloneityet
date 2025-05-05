@@ -2,7 +2,7 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_auth_provider.dart';
 import 'dart:ui';
-import 'package:firebase_auth/firebase_auth.dart';
+import 'dart:io';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({Key? key}) : super(key: key);
@@ -12,70 +12,56 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStateMixin {
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-  final _nameController = TextEditingController();
-  bool _isLogin = true;
   bool _isLoading = false;
-  bool _obscurePassword = true;
+  late AnimationController _animationController;
+  late Animation<double> _fadeAnimation;
+  late Animation<Offset> _slideAnimation;
+
+  @override
+  void initState() {
+    super.initState();
+
+    _animationController = AnimationController(
+      duration: const Duration(milliseconds: 1500),
+      vsync: this,
+    );
+
+    _fadeAnimation = Tween<double>(begin: 0.0, end: 1.0).animate(
+      CurvedAnimation(parent: _animationController, curve: Curves.easeInOut),
+    );
+
+    _slideAnimation = Tween<Offset>(
+      begin: const Offset(0, 0.5),
+      end: Offset.zero,
+    ).animate(CurvedAnimation(
+      parent: _animationController,
+      curve: Curves.easeOutCubic,
+    ));
+
+    _animationController.forward();
+  }
 
   @override
   void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    _nameController.dispose();
+    _animationController.dispose();
     super.dispose();
   }
 
-  void _toggleAuthMode() {
-    setState(() {
-      _isLogin = !_isLogin;
-      // Clear form when switching
-      _formKey.currentState?.reset();
-    });
-  }
-
-  Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
+  Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
-      print("Attempting authentication...");
+      // TODO: Implement Google Sign In
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      bool success;
+      bool success = await authProvider.signInWithGoogle();
 
-      if (_isLogin) {
-        success = await authProvider.login(
-          _emailController.text,
-          _passwordController.text,
-        );
-      } else {
-        success = await authProvider.register(
-          _nameController.text,
-          _emailController.text,
-          _passwordController.text,
-        );
-      }
-
-      print("Authentication result: $success");
-
-      // Check if the user is actually signed in with Firebase
-      if (FirebaseAuth.instance.currentUser != null && mounted) {
-        // Navigate to main screen on success
+      if (success && mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
-      } else if (!success && mounted) {
-        String errorMessage = authProvider.errorMessage ?? 'Authentication failed';
-        _showErrorDialog(errorMessage);
       }
     } catch (error) {
-      print("Error during authentication: $error");
-      _showErrorDialog('An error occurred. Please try again later.');
+      _showErrorDialog('Failed to sign in with Google');
     } finally {
       if (mounted) {
         setState(() {
@@ -85,11 +71,46 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     }
   }
 
+  Future<void> _handleFacebookSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // TODO: Implement Facebook Sign In
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      bool success = await authProvider.signInWithFacebook();
+
+      if (success && mounted) {
+        Navigator.of(context).pushReplacementNamed('/main');
+      }
+    } catch (error) {
+      _showErrorDialog('Failed to sign in with Facebook');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+  Future<void> _handlePhoneSignIn() async {
+    if (mounted) {
+      Navigator.of(context).pushNamed('/phone-login');
+    }
+  }
+
+  Future<void> _handleAppleSignIn() async {
+    // Apple Sign In is not available yet - show appropriate message
+    _showErrorDialog('Apple Sign In will be available in future updates');
+  }
+
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: Text(_isLogin ? 'Login Failed' : 'Sign Up Failed'),
+        title: const Text('Sign In Failed'),
         content: Text(message),
         actions: [
           TextButton(
@@ -106,356 +127,205 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
+      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Background gradient
+          // Tinder-like gradient background
           Container(
-            decoration: const BoxDecoration(
+            decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topRight,
-                end: Alignment.bottomLeft,
+                begin: Alignment.topCenter,
+                end: Alignment.bottomCenter,
                 colors: [
-                  Color(0xFFFF7676),  // Light red
-                  Color(0xFFFF4D67),  // Medium red
-                  Color(0xFFFF1744),  // Bright red
+                  Colors.pink.withOpacity(0.1),
+                  Colors.red.withOpacity(0.1),
                 ],
               ),
             ),
           ),
 
-          // Circular patterns for visual effect
-          Positioned(
-            top: -size.height * 0.1,
-            right: -size.width * 0.1,
-            child: Container(
-              width: size.width * 0.5,
-              height: size.width * 0.5,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ),
-
-          Positioned(
-            bottom: -size.height * 0.05,
-            left: -size.width * 0.05,
-            child: Container(
-              width: size.width * 0.4,
-              height: size.width * 0.4,
-              decoration: BoxDecoration(
-                shape: BoxShape.circle,
-                color: Colors.white.withOpacity(0.1),
-              ),
-            ),
-          ),
-
-          // Main content
-          SafeArea(
-            child: SingleChildScrollView(
-              padding: const EdgeInsets.all(24.0),
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                crossAxisAlignment: CrossAxisAlignment.stretch,
-                children: [
-                  SizedBox(height: size.height * 0.1),
-
-                  // Logo and app name
-                  Column(
+          FadeTransition(
+            opacity: _fadeAnimation,
+            child: SlideTransition(
+              position: _slideAnimation,
+              child: SingleChildScrollView(
+                child: Padding(
+                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
+                  child: Column(
+                    mainAxisAlignment: MainAxisAlignment.center,
                     children: [
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(
-                          shape: BoxShape.circle,
-                          color: Colors.white,
-                          boxShadow: [
-                            BoxShadow(
-                              color: Colors.black26,
-                              blurRadius: 10,
-                              offset: Offset(0, 4),
-                            ),
-                          ],
-                        ),
-                        child: const Icon(
-                          Icons.whatshot,
-                          color: Colors.red,
-                          size: 50,
-                        ),
+                      SizedBox(height: size.height * 0.15),
+
+                      // Logo
+                      const Icon(
+                        Icons.whatshot,
+                        size: 60,
+                        color: Colors.red,
                       ),
                       const SizedBox(height: 16),
+
+                      // App name (Tinder-style)
                       const Text(
-                        'Tinder Clone',
+                        'STILL',
                         style: TextStyle(
-                          fontSize: 28,
+                          fontSize: 50,
                           fontWeight: FontWeight.bold,
-                          color: Colors.white,
+                          color: Colors.red,
+                          fontStyle: FontStyle.italic,
                         ),
                       ),
-                      const SizedBox(height: 8),
-                      Text(
-                        _isLogin ? 'Sign in to continue' : 'Create a new account',
-                        style: const TextStyle(
-                          fontSize: 16,
-                          color: Colors.white70,
-                        ),
-                      ),
-                    ],
-                  ),
 
-                  const SizedBox(height: 40),
+                      SizedBox(height: size.height * 0.1),
 
-                  // Form with glass effect
-                  ClipRRect(
-                    borderRadius: BorderRadius.circular(20),
-                    child: BackdropFilter(
-                      filter: ImageFilter.blur(sigmaX: 10, sigmaY: 10),
-                      child: Container(
-                        padding: const EdgeInsets.all(20),
-                        decoration: BoxDecoration(
-                          color: Colors.white.withOpacity(0.2),
-                          borderRadius: BorderRadius.circular(20),
-                          border: Border.all(
-                            color: Colors.white.withOpacity(0.2),
-                            width: 1.5,
-                          ),
-                        ),
-                        child: Form(
-                          key: _formKey,
-                          child: Column(
+                      // Terms text
+                      Padding(
+                        padding: const EdgeInsets.symmetric(horizontal: 16),
+                        child: RichText(
+                          textAlign: TextAlign.center,
+                          text: TextSpan(
+                            style: const TextStyle(
+                              color: Colors.black54,
+                              fontSize: 12,
+                            ),
                             children: [
-                              // Name field (only for signup)
-                              if (!_isLogin)
-                                Padding(
-                                  padding: const EdgeInsets.only(bottom: 16),
-                                  child: _buildTextField(
-                                    controller: _nameController,
-                                    icon: Icons.person,
-                                    label: 'Name',
-                                    validator: (value) {
-                                      if (!_isLogin && (value == null || value.isEmpty)) {
-                                        return 'Please enter your name';
-                                      }
-                                      return null;
-                                    },
-                                  ),
-                                ),
-
-                              // Email field
-                              _buildTextField(
-                                controller: _emailController,
-                                icon: Icons.email,
-                                label: 'Email',
-                                keyboardType: TextInputType.emailAddress,
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter your email';
-                                  }
-                                  if (!value.contains('@')) {
-                                    return 'Please enter a valid email';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              const SizedBox(height: 16),
-
-                              // Password field
-                              _buildTextField(
-                                controller: _passwordController,
-                                icon: Icons.lock,
-                                label: 'Password',
-                                obscureText: _obscurePassword,
-                                suffixIcon: IconButton(
-                                  icon: Icon(
-                                    _obscurePassword ? Icons.visibility : Icons.visibility_off,
-                                    color: Colors.white70,
-                                  ),
-                                  onPressed: () {
-                                    setState(() {
-                                      _obscurePassword = !_obscurePassword;
-                                    });
-                                  },
-                                ),
-                                validator: (value) {
-                                  if (value == null || value.isEmpty) {
-                                    return 'Please enter your password';
-                                  }
-                                  if (!_isLogin && value.length < 6) {
-                                    return 'Password must be at least 6 characters';
-                                  }
-                                  return null;
-                                },
-                              ),
-
-                              const SizedBox(height: 24),
-
-                              // Submit button
-                              _buildSubmitButton(),
-
-                              const SizedBox(height: 16),
-
-                              // Toggle between login and signup
-                              TextButton(
-                                onPressed: _toggleAuthMode,
-                                child: Text(
-                                  _isLogin
-                                      ? 'Create a new account'
-                                      : 'Already have an account?',
-                                  style: const TextStyle(
-                                    color: Colors.white,
-                                    fontWeight: FontWeight.bold,
-                                  ),
+                              const TextSpan(text: 'By tapping Create Account or Sign In, you agree to our '),
+                              TextSpan(
+                                text: 'Terms',
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  decoration: TextDecoration.underline,
                                 ),
                               ),
+                              const TextSpan(text: '. Learn how we process your data in our '),
+                              TextSpan(
+                                text: 'Privacy Policy',
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                              const TextSpan(text: ' and '),
+                              TextSpan(
+                                text: 'Cookie Policy',
+                                style: const TextStyle(
+                                  color: Colors.red,
+                                  decoration: TextDecoration.underline,
+                                ),
+                              ),
+                              const TextSpan(text: '.'),
                             ],
                           ),
                         ),
                       ),
-                    ),
-                  ),
 
-                  const SizedBox(height: 32),
+                      const SizedBox(height: 32),
 
-                  // Social login options
-                  if (_isLogin) ...[
-                    const Center(
-                      child: Text(
-                        'Or sign in with',
-                        style: TextStyle(
-                          color: Colors.white70,
-                          fontSize: 14,
+                      // Sign In with Apple (only on iOS)
+                      if (Platform.isIOS) ...[
+                        _buildSocialButton(
+                          'SIGN IN WITH APPLE',
+                          Icons.apple,
+                          Colors.black,
+                              () => _handleAppleSignIn(),
+                        ),
+                        const SizedBox(height: 16),
+                      ],
+
+                      // Sign In with Facebook
+                      _buildSocialButton(
+                        'SIGN IN WITH FACEBOOK',
+                        Icons.facebook,
+                        const Color(0xFF1877F2),
+                            () => _handleFacebookSignIn(),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Sign In with Google
+                      _buildSocialButton(
+                        'SIGN IN WITH GOOGLE',
+                        Icons.g_translate,
+                        Colors.red,
+                            () => _handleGoogleSignIn(),
+                      ),
+
+                      const SizedBox(height: 16),
+
+                      // Sign In with Phone Number
+                      _buildSocialButton(
+                        'SIGN IN WITH PHONE NUMBER',
+                        Icons.phone,
+                        Colors.green,
+                            () => _handlePhoneSignIn(),
+                      ),
+
+                      const SizedBox(height: 48),
+
+                      // Trouble signing in
+                      TextButton(
+                        onPressed: () {
+                          // TODO: Handle trouble signing in
+                        },
+                        child: const Text(
+                          'Trouble Signing In?',
+                          style: TextStyle(
+                            color: Colors.grey,
+                            fontSize: 14,
+                          ),
                         ),
                       ),
-                    ),
-                    const SizedBox(height: 16),
-                    Row(
-                      mainAxisAlignment: MainAxisAlignment.center,
-                      children: [
-                        _buildSocialButton(
-                          icon: Icons.g_mobiledata,
-                          color: Colors.white,
-                          onPressed: () {
-                            // Google sign in logic would go here
-                          },
-                        ),
-                        const SizedBox(width: 16),
-                        _buildSocialButton(
-                          icon: Icons.facebook,
-                          color: Colors.white,
-                          onPressed: () {
-                            // Facebook sign in logic would go here
-                          },
-                        ),
-                      ],
-                    ),
-                  ],
-                ],
+
+                      const SizedBox(height: 32),
+                    ],
+                  ),
+                ),
               ),
             ),
           ),
+
+          // Loading indicator
+          if (_isLoading)
+            Container(
+              color: Colors.black.withOpacity(0.3),
+              child: const Center(
+                child: CircularProgressIndicator(
+                  valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+                ),
+              ),
+            ),
         ],
       ),
     );
   }
 
-  Widget _buildTextField({
-    required TextEditingController controller,
-    required IconData icon,
-    required String label,
-    bool obscureText = false,
-    TextInputType keyboardType = TextInputType.text,
-    Widget? suffixIcon,
-    String? Function(String?)? validator,
-  }) {
-    return TextFormField(
-      controller: controller,
-      style: const TextStyle(color: Colors.white),
-      decoration: InputDecoration(
-        prefixIcon: Icon(icon, color: Colors.white70),
-        suffixIcon: suffixIcon,
-        labelText: label,
-        labelStyle: const TextStyle(color: Colors.white70),
-        border: OutlineInputBorder(
-          borderRadius: BorderRadius.circular(30),
-          borderSide: BorderSide.none,
-        ),
-        filled: true,
-        fillColor: Colors.white.withOpacity(0.1),
-        contentPadding: const EdgeInsets.symmetric(
-          horizontal: 20,
-          vertical: 16,
-        ),
-        errorStyle: const TextStyle(
-          color: Colors.yellow,
-          fontSize: 12,
-        ),
-      ),
-      obscureText: obscureText,
-      keyboardType: keyboardType,
-      validator: validator,
-      cursorColor: Colors.white,
-    );
-  }
-
-  Widget _buildSubmitButton() {
+  Widget _buildSocialButton(
+      String text,
+      IconData icon,
+      Color color,
+      VoidCallback onTap,
+      ) {
     return SizedBox(
-      width: double.infinity, // Make button full width
-      height: 55, // Increase height
-      child: ElevatedButton(
-        onPressed: _isLoading ? null : _submit,
+      width: double.infinity,
+      height: 50,
+      child: ElevatedButton.icon(
+        onPressed: _isLoading ? null : onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: Colors.white,
-          foregroundColor: Colors.red,
-          padding: const EdgeInsets.symmetric(vertical: 16),
+          backgroundColor: color,
+          foregroundColor: Colors.white,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(30),
+            borderRadius: BorderRadius.circular(25),
           ),
-          elevation: 5,
-          shadowColor: Colors.black38,
+          elevation: 0,
+          disabledBackgroundColor: color.withOpacity(0.5),
         ),
-        child: _isLoading
-            ? const SizedBox(
-          height: 24,
-          width: 24,
-          child: CircularProgressIndicator(
-            color: Colors.red,
-            strokeWidth: 3,
-          ),
-        )
-            : Text(
-          _isLogin ? 'Sign In' : 'Sign Up',
+        icon: Icon(icon, size: 20),
+        label: Text(
+          text,
           style: const TextStyle(
-            fontSize: 18, // Larger font
+            fontSize: 14,
             fontWeight: FontWeight.bold,
+            letterSpacing: 0.5,
           ),
-        ),
-      ),
-    );
-  }
-
-  Widget _buildSocialButton({
-    required IconData icon,
-    required Color color,
-    required VoidCallback onPressed,
-  }) {
-    return InkWell(
-      onTap: onPressed,
-      borderRadius: BorderRadius.circular(50),
-      child: Container(
-        width: 50,
-        height: 50,
-        decoration: BoxDecoration(
-          shape: BoxShape.circle,
-          color: color.withOpacity(0.2),
-          border: Border.all(
-            color: color.withOpacity(0.5),
-            width: 1,
-          ),
-        ),
-        child: Icon(
-          icon,
-          color: color,
-          size: 30,
         ),
       ),
     );

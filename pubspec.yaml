@@ -13,11 +13,11 @@ dependencies:
   shared_preferences: ^2.2.1
   intl: ^0.18.1
   cached_network_image: ^3.2.3
-  firebase_core: ^2.15.0
-  firebase_auth: ^4.7.2
+  firebase_core: ^2.32.0
+  firebase_auth: ^4.16.0
   cloud_firestore: ^4.8.4
   firebase_storage: ^11.2.5
-  firebase_messaging: ^14.6.7
+  firebase_messaging: ^14.7.10
   cloud_functions: ^4.4.0  # Fixed name
   image_picker: ^0.8.9
   geolocator: ^9.0.2
@@ -26,6 +26,9 @@ dependencies:
   google_fonts: ^5.1.0
   confetti: ^0.7.0
   shimmer: ^3.0.0
+  google_sign_in: ^6.1.5
+  flutter_facebook_auth: ^6.0.3
+
 
 
 dev_dependencies:

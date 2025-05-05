@@ -34,6 +34,70 @@ class AppAuthProvider with ChangeNotifier {
     });
   }
 
+  // Add these methods to your AppAuthProvider class:
+
+// Google Sign In
+  Future<bool> signInWithGoogle() async {
+    try {
+      // For now, just simulate success
+      print('Google sign in initiated');
+      await Future.delayed(const Duration(seconds: 1));
+      return true;
+    } catch (e) {
+      print('Google sign in error: $e');
+      return false;
+    }
+  }
+
+// Facebook Sign In
+  Future<bool> signInWithFacebook() async {
+    try {
+      // For now, just simulate success
+      print('Facebook sign in initiated');
+      await Future.delayed(const Duration(seconds: 1));
+      return true;
+    } catch (e) {
+      print('Facebook sign in error: $e');
+      return false;
+    }
+  }
+
+// Apple Sign In
+  Future<bool> signInWithApple() async {
+    try {
+      // TODO: Implement Apple Sign In
+      // You'll need to add the sign_in_with_apple package and configure it
+      return true;
+    } catch (e) {
+      print('Apple sign in error: $e');
+      return false;
+    }
+  }
+
+// Phone Auth
+  Future<String?> sendOtp(String phoneNumber) async {
+    try {
+      // TODO: Implement Firebase Phone Auth verification
+      // You'll need to set up Firebase phone auth and implement the verification code sending
+      return 'verificationId';
+    } catch (e) {
+      print('Send OTP error: $e');
+      return null;
+    }
+  }
+
+  Future<bool> verifyOtp(String verificationId, String otp) async {
+    try {
+      // TODO: Implement Firebase Phone Auth verification
+      // You'll need to verify the OTP code and sign in the user
+      return true;
+    } catch (e) {
+      print('Verify OTP error: $e');
+      return false;
+    }
+  }
+
+
   // Login with email and password
   Future<bool> login(String email, String password) async {
     try {
