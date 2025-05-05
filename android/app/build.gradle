@@ -15,6 +15,7 @@ android {
     namespace = "com.example.new_tinder_clone"
     compileSdk = 35
     ndkVersion = flutter.ndkVersion
+    ndkVersion = "25.1.8937393"  // Use a specific version instead of flutter.ndkVersion
 
     compileOptions {
         sourceCompatibility = JavaVersion.VERSION_1_8
@@ -83,4 +84,8 @@ android {
 
 flutter {
     source = "../.."
+}
+dependencies {
+    // Add the Facebook SDK dependency here if needed
+    implementation 'com.facebook.android:facebook-android-sdk:latest.release'
 }

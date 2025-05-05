@@ -31,6 +31,7 @@ import 'screens/modern_home_screen.dart';
 import 'screens/modern_profile_screen.dart';
 import './widgets/notification_handler.dart';
 import './utils/navigation.dart'; // Add this import
+import 'package:new_tinder_clone/screens/splash_screen.dart'; // Add this import
 
 // Add these imports
 import 'screens/photo_manager_screen.dart';

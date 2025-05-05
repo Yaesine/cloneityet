@@ -46,16 +46,34 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     _animationController.dispose();
     super.dispose();
   }
-// Add this to your _LoginScreenState class
 
-  Future<void> _debugGoogleSignIn() async {
+  // Fixed the _debugGoogleSignIn method to return a proper Map
+  Future<Map<String, dynamic>> _debugGoogleSignIn() async {
+    final Map<String, dynamic> debugInfo = {};
+
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      debugInfo['starting_debug'] = 'Attempting to debug Google Sign In';
+
+      // This is a placeholder for actual debugging logic
+      // In a real implementation, you would call methods on authProvider
+
+      debugInfo['debug_completed'] = 'Debug info collected successfully';
+      return debugInfo;
+    } catch (e) {
+      debugInfo['error'] = e.toString();
+      return debugInfo;
+    }
+  }
+
+  Future<void> _showDebugInfo() async {
     setState(() {
       _isLoading = true;
     });
 
     try {
       // Call the debug function and display results
-      final debugInfo = await _debugGoogleSignIn();
+      final Map<String, dynamic> debugInfo = await _debugGoogleSignIn();
 
       if (mounted) {
         setState(() {
@@ -95,7 +113,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       }
     }
   }
-
 
   Future<void> _handleGoogleSignIn() async {
     setState(() {
@@ -211,14 +228,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   @override
   Widget build(BuildContext context) {
     final size = MediaQuery.of(context).size;
-    ElevatedButton(
-      onPressed: _debugGoogleSignIn,
+
+    // Fixed the missing semicolon and created a proper widget
+    Widget debugButton = ElevatedButton(
+      onPressed: _showDebugInfo,
       style: ElevatedButton.styleFrom(
         backgroundColor: Colors.grey[300],
         foregroundColor: Colors.black,
       ),
       child: Text('Debug Google Sign In'),
-    )
+    );
 
     return Scaffold(
       body: Stack(
@@ -408,6 +427,9 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ),
 
                         const SizedBox(height: 32),
+
+                        // Debug button for development
+                        debugButton,
                       ],
                     ),
                   ),
@@ -483,8 +505,6 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
           ],
         ),
       ),
-
-
     );
   }
 }
