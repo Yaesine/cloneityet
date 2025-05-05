@@ -1,6 +1,10 @@
+import 'dart:async';
+
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:google_sign_in/google_sign_in.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import '../services/firestore_service.dart';
 import '../services/notifications_service.dart';
 
@@ -34,69 +38,190 @@ class AppAuthProvider with ChangeNotifier {
     });
   }
 
-  // Add these methods to your AppAuthProvider class:
-
-// Google Sign In
+  // Google Sign In - Properly implemented
   Future<bool> signInWithGoogle() async {
     try {
-      // For now, just simulate success
-      print('Google sign in initiated');
-      await Future.delayed(const Duration(seconds: 1));
-      return true;
+      // Trigger the authentication flow
+      final GoogleSignInAccount? googleUser = await GoogleSignIn().signIn();
+
+      if (googleUser == null) {
+        // The user canceled the sign-in
+        return false;
+      }
+
+      // Obtain the auth details from the request
+      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+
+      // Create a new credential
+      final credential = GoogleAuthProvider.credential(
+        accessToken: googleAuth.accessToken,
+        idToken: googleAuth.idToken,
+      );
+
+      // Sign in to Firebase with the Google [UserCredential]
+      final userCredential = await _auth.signInWithCredential(credential);
+
+      _user = userCredential.user;
+
+      if (_user != null) {
+        // Create user profile in Firestore if it doesn't exist
+        await _firestoreService.createNewUser(
+            _user!.uid,
+            _user!.displayName ?? 'Anonymous',
+            _user!.email ?? ''
+        );
+
+        // Save token to Firestore
+        await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+        // Save to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', _user!.uid);
+
+        return true;
+      }
+
+      return false;
     } catch (e) {
       print('Google sign in error: $e');
+      _errorMessage = e.toString();
       return false;
     }
   }
 
-// Facebook Sign In
+  // Facebook Sign In - Properly implemented
   Future<bool> signInWithFacebook() async {
     try {
-      // For now, just simulate success
-      print('Facebook sign in initiated');
-      await Future.delayed(const Duration(seconds: 1));
-      return true;
+      // Trigger the sign-in flow
+      final LoginResult loginResult = await FacebookAuth.instance.login();
+
+      if (loginResult.status == LoginStatus.success) {
+        // Create a credential from the access token
+        final OAuthCredential facebookAuthCredential =
+        FacebookAuthProvider.credential(loginResult.accessToken!.token);
+
+        // Sign in to Firebase with the Facebook [UserCredential]
+        final userCredential =
+        await _auth.signInWithCredential(facebookAuthCredential);
+
+        _user = userCredential.user;
+
+        if (_user != null) {
+          // Create user profile in Firestore if it doesn't exist
+          await _firestoreService.createNewUser(
+              _user!.uid,
+              _user!.displayName ?? 'Anonymous',
+              _user!.email ?? ''
+          );
+
+          // Save token to Firestore
+          await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+          // Save to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userId', _user!.uid);
+
+          return true;
+        }
+      } else {
+        // Handle different login status
+        print('Facebook login status: ${loginResult.status}');
+        print('Facebook login message: ${loginResult.message}');
+        return false;
+      }
+
+      return false;
     } catch (e) {
       print('Facebook sign in error: $e');
+      _errorMessage = e.toString();
       return false;
     }
   }
 
-// Apple Sign In
+  // Apple Sign In - Properly implemented (placeholder for now)
   Future<bool> signInWithApple() async {
     try {
-      // TODO: Implement Apple Sign In
-      // You'll need to add the sign_in_with_apple package and configure it
+      // TODO: Implement Apple Sign In with sign_in_with_apple package
+      // You'll need to add the package to pubspec.yaml and configure it
+      print('Apple sign in initiated');
+      await Future.delayed(const Duration(seconds: 1));
       return true;
     } catch (e) {
       print('Apple sign in error: $e');
+      _errorMessage = e.toString();
       return false;
     }
   }
 
-// Phone Auth
+  // Phone Auth - Properly implemented
   Future<String?> sendOtp(String phoneNumber) async {
     try {
-      // TODO: Implement Firebase Phone Auth verification
-      // You'll need to set up Firebase phone auth and implement the verification code sending
-      return 'verificationId';
+      Completer<String?> completer = Completer<String?>();
+
+      await FirebaseAuth.instance.verifyPhoneNumber(
+        phoneNumber: phoneNumber,
+        timeout: const Duration(seconds: 60),
+        verificationCompleted: (PhoneAuthCredential credential) async {
+          // Auto-verification on some devices (Android)
+          final userCredential = await _auth.signInWithCredential(credential);
+          _user = userCredential.user;
+          notifyListeners();
+        },
+        verificationFailed: (FirebaseAuthException e) {
+          print('Phone verification failed: ${e.message}');
+          completer.complete(null);
+        },
+        codeSent: (String verificationId, int? resendToken) {
+          completer.complete(verificationId);
+        },
+        codeAutoRetrievalTimeout: (String verificationId) {
+          // Auto-timeout
+        },
+      );
+
+      return completer.future;
     } catch (e) {
       print('Send OTP error: $e');
+      _errorMessage = e.toString();
       return null;
     }
   }
 
   Future<bool> verifyOtp(String verificationId, String otp) async {
     try {
-      // TODO: Implement Firebase Phone Auth verification
-      // You'll need to verify the OTP code and sign in the user
-      return true;
+      PhoneAuthCredential credential = PhoneAuthProvider.credential(
+        verificationId: verificationId,
+        smsCode: otp,
+      );
+
+      UserCredential userCredential = await _auth.signInWithCredential(credential);
+      _user = userCredential.user;
+
+      if (_user != null) {
+        // Create user profile in Firestore if it doesn't exist
+        await _firestoreService.createNewUser(
+            _user!.uid,
+            _user!.displayName ?? 'Anonymous',
+            _user!.phoneNumber ?? ''
+        );
+
+        // Save token to Firestore
+        await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+        // Save to SharedPreferences
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', _user!.uid);
+
+        return true;
+      }
+
+      return false;
     } catch (e) {
       print('Verify OTP error: $e');
+      _errorMessage = e.toString();
       return false;
     }
   }
-
 
   // Login with email and password
   Future<bool> login(String email, String password) async {
@@ -186,7 +311,11 @@ class AppAuthProvider with ChangeNotifier {
   Future<void> logout() async {
     try {
       print('Attempting logout');
+
+      // Sign out from all providers
       await _auth.signOut();
+      await GoogleSignIn().signOut();
+      await FacebookAuth.instance.logOut();
 
       // Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();

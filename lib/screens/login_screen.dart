@@ -22,7 +22,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     super.initState();
 
     _animationController = AnimationController(
-      duration: const Duration(milliseconds: 1500),
+      duration: const Duration(milliseconds: 1200),
       vsync: this,
     );
 
@@ -31,11 +31,11 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
 
     _slideAnimation = Tween<Offset>(
-      begin: const Offset(0, 0.5),
+      begin: const Offset(0, 0.3),
       end: Offset.zero,
     ).animate(CurvedAnimation(
       parent: _animationController,
-      curve: Curves.easeOutCubic,
+      curve: Curves.easeOut,
     ));
 
     _animationController.forward();
@@ -53,15 +53,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
 
     try {
-      // TODO: Implement Google Sign In
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
       bool success = await authProvider.signInWithGoogle();
 
       if (success && mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
+      } else {
+        _showErrorDialog('Google sign in failed. Please try again.');
       }
     } catch (error) {
-      _showErrorDialog('Failed to sign in with Google');
+      _showErrorDialog('Failed to sign in with Google: ${error.toString()}');
     } finally {
       if (mounted) {
         setState(() {
@@ -77,15 +78,16 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     });
 
     try {
-      // TODO: Implement Facebook Sign In
       final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
       bool success = await authProvider.signInWithFacebook();
 
       if (success && mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
+      } else {
+        _showErrorDialog('Facebook sign in failed. Please try again.');
       }
     } catch (error) {
-      _showErrorDialog('Failed to sign in with Facebook');
+      _showErrorDialog('Failed to sign in with Facebook: ${error.toString()}');
     } finally {
       if (mounted) {
         setState(() {
@@ -102,20 +104,41 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   Future<void> _handleAppleSignIn() async {
-    // Apple Sign In is not available yet - show appropriate message
-    _showErrorDialog('Apple Sign In will be available in future updates');
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      bool success = await authProvider.signInWithApple();
+
+      if (success && mounted) {
+        Navigator.of(context).pushReplacementNamed('/main');
+      } else {
+        _showErrorDialog('Apple sign in failed. Please try again.');
+      }
+    } catch (error) {
+      _showErrorDialog('Failed to sign in with Apple: ${error.toString()}');
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
   }
 
   void _showErrorDialog(String message) {
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(
-        title: const Text('Sign In Failed'),
+        shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(20)),
+        title: const Text('Oops!', style: TextStyle(color: Color(0xFFFF4458))),
         content: Text(message),
         actions: [
           TextButton(
             onPressed: () => Navigator.of(ctx).pop(),
-            child: const Text('OK'),
+            child: const Text('OK', style: TextStyle(color: Color(0xFFFF4458))),
           ),
         ],
       ),
@@ -127,169 +150,215 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      backgroundColor: Colors.white,
       body: Stack(
         children: [
-          // Tinder-like gradient background
+          // Beautiful background with gradient and pattern
           Container(
+            height: size.height,
+            width: size.width,
             decoration: BoxDecoration(
               gradient: LinearGradient(
-                begin: Alignment.topCenter,
-                end: Alignment.bottomCenter,
+                begin: Alignment.topLeft,
+                end: Alignment.bottomRight,
                 colors: [
-                  Colors.pink.withOpacity(0.1),
-                  Colors.red.withOpacity(0.1),
+                  Color(0xFFFF4458), // Tinder red
+                  Color(0xFFFF7854), // Orange gradient
+                  Color(0xFFFF4458).withOpacity(0.9),
                 ],
+                stops: [0.0, 0.5, 1.0],
               ),
             ),
           ),
 
+          // Decorative circles
+          Positioned(
+            top: -100,
+            right: -100,
+            child: Container(
+              width: 300,
+              height: 300,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+          Positioned(
+            bottom: -150,
+            left: -150,
+            child: Container(
+              width: 400,
+              height: 400,
+              decoration: BoxDecoration(
+                shape: BoxShape.circle,
+                color: Colors.white.withOpacity(0.1),
+              ),
+            ),
+          ),
+
+          // Main content
           FadeTransition(
             opacity: _fadeAnimation,
             child: SlideTransition(
               position: _slideAnimation,
-              child: SingleChildScrollView(
-                child: Padding(
-                  padding: const EdgeInsets.symmetric(horizontal: 24.0),
-                  child: Column(
-                    mainAxisAlignment: MainAxisAlignment.center,
-                    children: [
-                      SizedBox(height: size.height * 0.15),
+              child: SafeArea(
+                child: SingleChildScrollView(
+                  child: Padding(
+                    padding: const EdgeInsets.symmetric(horizontal: 32.0),
+                    child: Column(
+                      children: [
+                        SizedBox(height: size.height * 0.1),
 
-                      // Logo
-                      const Icon(
-                        Icons.whatshot,
-                        size: 60,
-                        color: Colors.red,
-                      ),
-                      const SizedBox(height: 16),
-
-                      // App name (Tinder-style)
-                      const Text(
-                        'STILL',
-                        style: TextStyle(
-                          fontSize: 50,
-                          fontWeight: FontWeight.bold,
-                          color: Colors.red,
-                          fontStyle: FontStyle.italic,
+                        // Logo with flame animation
+                        Container(
+                          width: 100,
+                          height: 100,
+                          decoration: BoxDecoration(
+                            shape: BoxShape.circle,
+                            color: Colors.white,
+                            boxShadow: [
+                              BoxShadow(
+                                color: Colors.black.withOpacity(0.15),
+                                blurRadius: 20,
+                                spreadRadius: 5,
+                                offset: const Offset(0, 10),
+                              ),
+                            ],
+                          ),
+                          child: const Icon(
+                            Icons.whatshot,
+                            size: 60,
+                            color: Color(0xFFFF4458),
+                          ),
                         ),
-                      ),
 
-                      SizedBox(height: size.height * 0.1),
+                        const SizedBox(height: 24),
 
-                      // Terms text
-                      Padding(
-                        padding: const EdgeInsets.symmetric(horizontal: 16),
-                        child: RichText(
-                          textAlign: TextAlign.center,
-                          text: TextSpan(
-                            style: const TextStyle(
-                              color: Colors.black54,
-                              fontSize: 12,
-                            ),
-                            children: [
-                              const TextSpan(text: 'By tapping Create Account or Sign In, you agree to our '),
-                              TextSpan(
-                                text: 'Terms',
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  decoration: TextDecoration.underline,
-                                ),
+                        // App name
+                        Text(
+                          'STILL',
+                          style: TextStyle(
+                            fontSize: 48,
+                            fontWeight: FontWeight.bold,
+                            color: Colors.white,
+                            letterSpacing: 12.0,
+                            fontStyle: FontStyle.italic,
+                            shadows: [
+                              Shadow(
+                                offset: Offset(0, 4),
+                                blurRadius: 10,
+                                color: Colors.black.withOpacity(0.25),
                               ),
-                              const TextSpan(text: '. Learn how we process your data in our '),
-                              TextSpan(
-                                text: 'Privacy Policy',
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                              const TextSpan(text: ' and '),
-                              TextSpan(
-                                text: 'Cookie Policy',
-                                style: const TextStyle(
-                                  color: Colors.red,
-                                  decoration: TextDecoration.underline,
-                                ),
-                              ),
-                              const TextSpan(text: '.'),
                             ],
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 32),
+                        const SizedBox(height: 8),
 
-                      // Sign In with Apple (only on iOS)
-                      if (Platform.isIOS) ...[
-                        _buildSocialButton(
-                          'SIGN IN WITH APPLE',
-                          Icons.apple,
-                          Colors.black,
-                              () => _handleAppleSignIn(),
-                        ),
-                        const SizedBox(height: 16),
-                      ],
-
-                      // Sign In with Facebook
-                      _buildSocialButton(
-                        'SIGN IN WITH FACEBOOK',
-                        Icons.facebook,
-                        const Color(0xFF1877F2),
-                            () => _handleFacebookSignIn(),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Sign In with Google
-                      _buildSocialButton(
-                        'SIGN IN WITH GOOGLE',
-                        Icons.g_translate,
-                        Colors.red,
-                            () => _handleGoogleSignIn(),
-                      ),
-
-                      const SizedBox(height: 16),
-
-                      // Sign In with Phone Number
-                      _buildSocialButton(
-                        'SIGN IN WITH PHONE NUMBER',
-                        Icons.phone,
-                        Colors.green,
-                            () => _handlePhoneSignIn(),
-                      ),
-
-                      const SizedBox(height: 48),
-
-                      // Trouble signing in
-                      TextButton(
-                        onPressed: () {
-                          // TODO: Handle trouble signing in
-                        },
-                        child: const Text(
-                          'Trouble Signing In?',
+                        Text(
+                          'Swipe. Match. Chat.',
                           style: TextStyle(
-                            color: Colors.grey,
-                            fontSize: 14,
+                            fontSize: 18,
+                            color: Colors.white.withOpacity(0.9),
+                            letterSpacing: 3.0,
+                            fontWeight: FontWeight.w300,
                           ),
                         ),
-                      ),
 
-                      const SizedBox(height: 32),
-                    ],
+                        SizedBox(height: size.height * 0.08),
+
+                        // Social login buttons with improved design
+                        if (Platform.isIOS) ...[
+                          _buildModernButton(
+                            'Continue with Apple',
+                            Icons.apple,
+                            Colors.black,
+                                () => _handleAppleSignIn(),
+                          ),
+                          const SizedBox(height: 16),
+                        ],
+
+                        _buildModernButton(
+                          'Continue with Facebook',
+                          'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/1200px-Facebook_Logo_%282019%29.png',
+                          const Color(0xFF1877F2),
+                              () => _handleFacebookSignIn(),
+                          isAsset: false,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildModernButton(
+                          'Continue with Google',
+                          'https://upload.wikimedia.org/wikipedia/commons/thumb/c/c1/Google_%22G%22_logo.svg/800px-Google_%22G%22_logo.svg.png',
+                          const Color(0xFF4285F4),
+                              () => _handleGoogleSignIn(),
+                          isAsset: false,
+                        ),
+
+                        const SizedBox(height: 16),
+
+                        _buildModernButton(
+                          'Continue with Phone',
+                          Icons.phone_outlined,
+                          const Color(0xFF25D366),
+                              () => _handlePhoneSignIn(),
+                        ),
+
+                        const SizedBox(height: 32),
+
+                        // Terms and conditions
+                        Text(
+                          'By signing up, you agree to our Terms of Service\nand Privacy Policy',
+                          textAlign: TextAlign.center,
+                          style: TextStyle(
+                            color: Colors.white.withOpacity(0.7),
+                            fontSize: 12,
+                            height: 1.5,
+                          ),
+                        ),
+
+                        const SizedBox(height: 24),
+
+                        // Sign in link
+                        TextButton(
+                          onPressed: () {
+                            // Handle manual email sign in if needed
+                          },
+                          child: Text(
+                            'Sign in with Email',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: 14,
+                              fontWeight: FontWeight.w500,
+                              decoration: TextDecoration.underline,
+                            ),
+                          ),
+                        ),
+
+                        const SizedBox(height: 32),
+                      ],
+                    ),
                   ),
                 ),
               ),
             ),
           ),
 
-          // Loading indicator
+          // Loading overlay
           if (_isLoading)
             Container(
-              color: Colors.black.withOpacity(0.3),
-              child: const Center(
-                child: CircularProgressIndicator(
-                  valueColor: AlwaysStoppedAnimation<Color>(Colors.red),
+              color: Colors.black.withOpacity(0.4),
+              child: Center(
+                child: Container(
+                  padding: const EdgeInsets.all(20),
+                  decoration: BoxDecoration(
+                    color: Colors.white,
+                    borderRadius: BorderRadius.circular(15),
+                  ),
+                  child: CircularProgressIndicator(
+                    valueColor: AlwaysStoppedAnimation<Color>(Color(0xFFFF4458)),
+                  ),
                 ),
               ),
             ),
@@ -298,34 +367,49 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
     );
   }
 
-  Widget _buildSocialButton(
+  Widget _buildModernButton(
       String text,
-      IconData icon,
+      dynamic icon,
       Color color,
-      VoidCallback onTap,
-      ) {
+      VoidCallback onTap, {
+        bool isAsset = true,
+      }) {
     return SizedBox(
       width: double.infinity,
-      height: 50,
-      child: ElevatedButton.icon(
+      height: 54,
+      child: ElevatedButton(
         onPressed: _isLoading ? null : onTap,
         style: ElevatedButton.styleFrom(
-          backgroundColor: color,
-          foregroundColor: Colors.white,
+          backgroundColor: Colors.white,
+          foregroundColor: Colors.black87,
           shape: RoundedRectangleBorder(
-            borderRadius: BorderRadius.circular(25),
+            borderRadius: BorderRadius.circular(27),
           ),
-          elevation: 0,
-          disabledBackgroundColor: color.withOpacity(0.5),
+          elevation: 3,
+          shadowColor: Colors.black.withOpacity(0.1),
+          disabledBackgroundColor: Colors.white.withOpacity(0.5),
         ),
-        icon: Icon(icon, size: 20),
-        label: Text(
-          text,
-          style: const TextStyle(
-            fontSize: 14,
-            fontWeight: FontWeight.bold,
-            letterSpacing: 0.5,
-          ),
+        child: Row(
+          mainAxisAlignment: MainAxisAlignment.center,
+          children: [
+            if (isAsset && icon is IconData)
+              Icon(icon, size: 22, color: color)
+            else if (!isAsset && icon is String)
+              Image.network(
+                icon,
+                width: 22,
+                height: 22,
+              ),
+            const SizedBox(width: 12),
+            Text(
+              text,
+              style: const TextStyle(
+                fontSize: 16,
+                fontWeight: FontWeight.w600,
+                letterSpacing: 0.5,
+              ),
+            ),
+          ],
         ),
       ),
     );

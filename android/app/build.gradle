@@ -49,6 +49,15 @@ android {
     }
 }
 
+dependencies {
+    // Add these Facebook dependencies
+    implementation 'com.facebook.android:facebook-android-sdk:latest.release'
+    implementation 'com.facebook.android:facebook-login:latest.release'
+
+    // Make sure you have these Flutter dependencies
+    implementation 'io.flutter:flutter_embedding_debug:1.0.0-1a65d409c7a1438a34d21b60bf30a6fd5db59314'
+}
+
 flutter {
     source = "../.."
 }

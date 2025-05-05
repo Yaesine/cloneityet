@@ -1,6 +1,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
 import 'package:new_tinder_clone/providers/message_provider.dart';
 import 'package:new_tinder_clone/screens/achievements_screen.dart';
 import 'package:new_tinder_clone/screens/boost_screen.dart';
@@ -49,6 +50,14 @@ import 'package:flutter/cupertino.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+
+  // Initialize Facebook SDK
+  await FacebookAuth.instance.webAndDesktopInitialize(
+    appId: "YOUR_FACEBOOK_APP_ID", // Replace with your Facebook App ID
+    cookie: true,
+    xfbml: true,
+    version: "v15.0",
+  );
 
   // Initialize notification manager after Firebase is initialized
   final notificationManager = NotificationManager();
@@ -106,19 +115,14 @@ class AuthWrapper extends StatelessWidget {
   Widget build(BuildContext context) {
     return Consumer<AppAuthProvider>(
       builder: (context, authProvider, _) {
-        if (authProvider.isLoading) {
-          return const SplashScreen();
-        }
-
-        if (authProvider.isLoggedIn) {
-          return const MainScreen();
-        } else {
-          return const LoginScreen();
-        }
+        // Always show splash screen first, then navigate based on auth state
+        return const SplashScreen();
       },
     );
   }
 }
+
+// In your main.dart file, update the MyApp widget:
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -135,11 +139,14 @@ class MyApp extends StatelessWidget {
         child: MaterialApp(
           navigatorKey: navigatorKey,
           title: 'Flutter Tinder Clone',
-          theme: AppTheme.lightTheme,
+          theme: AppTheme.lightTheme.copyWith(
+            scaffoldBackgroundColor: const Color(0xFFFF4458), // Add this
+          ),
+          debugShowCheckedModeBanner: false,
           home: const AuthWrapper(),
           routes: {
             '/login': (context) => const LoginScreen(),
-            '/phone-login': (context) => const PhoneLoginScreen(),  // Add this
+            '/phone-login': (context) => const PhoneLoginScreen(),
             '/main': (context) => const MainScreen(),
             '/chat': (context) => const ModernChatScreen(),
             '/photoManager': (context) => const PhotoManagerScreen(),
