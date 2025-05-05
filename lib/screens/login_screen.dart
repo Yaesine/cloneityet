@@ -57,12 +57,23 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
       bool success = await authProvider.signInWithGoogle();
 
       if (success && mounted) {
+        // Navigate to main screen
         Navigator.of(context).pushReplacementNamed('/main');
-      } else {
-        _showErrorDialog('Google sign in failed. Please try again.');
+      } else if (!success && mounted) {
+        // Check if the error was the PigeonUserDetails issue but user is actually signed in
+        if (authProvider.isLoggedIn) {
+          // User is actually signed in, navigate to main
+          Navigator.of(context).pushReplacementNamed('/main');
+        } else {
+          // Show error dialog
+          _showErrorDialog('Google sign in failed. Please try again.');
+        }
       }
     } catch (error) {
-      _showErrorDialog('Failed to sign in with Google: ${error.toString()}');
+      print('Login screen error: $error');
+      if (mounted) {
+        _showErrorDialog('Failed to sign in with Google: ${error.toString()}');
+      }
     } finally {
       if (mounted) {
         setState(() {
@@ -129,6 +140,8 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
   }
 
   void _showErrorDialog(String message) {
+    if (!mounted) return;
+
     showDialog(
       context: context,
       builder: (ctx) => AlertDialog(

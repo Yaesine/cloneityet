@@ -38,66 +38,92 @@ class AppAuthProvider with ChangeNotifier {
     });
   }
 
-  // Google Sign In - Properly implemented
+  // Google Sign In - SIMPLIFIED VERSION for fixing the token issue
   Future<bool> signInWithGoogle() async {
     try {
-      // Configure Google Sign In with clientId
+      print('Starting Google Sign In...');
+
+      // Create GoogleSignIn instance without clientId (it will use the one from google-services.json)
       final GoogleSignIn googleSignIn = GoogleSignIn();
 
-      // First, sign out any existing account
+      // Sign out any existing account first to get fresh tokens
       await googleSignIn.signOut();
 
-      // Trigger the authentication flow
+      print('Starting Google Sign In flow...');
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
 
       if (googleUser == null) {
-        // The user canceled the sign-in
         print('Google sign in cancelled by user');
         return false;
       }
 
-      // Obtain the auth details from the request
-      final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
+      print('Google sign in successful for: ${googleUser.email}');
 
-      // Create a new credential
-      final credential = GoogleAuthProvider.credential(
-        accessToken: googleAuth.accessToken,
-        idToken: googleAuth.idToken,
-      );
+      // Try to get authentication tokens
+      try {
+        final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Sign in to Firebase with the Google [UserCredential]
-      final userCredential = await _auth.signInWithCredential(credential);
+        print('Got authentication object');
+        print('Access token: ${googleAuth.accessToken != null ? 'Present' : 'Null'}');
+        print('ID token: ${googleAuth.idToken != null ? 'Present' : 'Null'}');
 
-      _user = userCredential.user;
-
-      if (_user != null) {
-        // Create user profile in Firestore if it doesn't exist
-        await _firestoreService.createNewUser(
-            _user!.uid,
-            _user!.displayName ?? 'Anonymous',
-            _user!.email ?? ''
+        // Create a new credential
+        final credential = GoogleAuthProvider.credential(
+          accessToken: googleAuth.accessToken,
+          idToken: googleAuth.idToken,
         );
 
-        // Save token to Firestore
-        await _notificationsService.saveTokenToDatabase(_user!.uid);
+        print('Created Firebase credential');
 
-        // Save to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', _user!.uid);
+        // Sign in to Firebase with the Google credential
+        final userCredential = await _auth.signInWithCredential(credential);
+        _user = userCredential.user;
 
-        return true;
+        if (_user != null) {
+          print('Firebase sign in successful: ${_user!.uid}');
+
+          // Create user profile in Firestore if it doesn't exist
+          await _firestoreService.createNewUser(
+              _user!.uid,
+              _user!.displayName ?? 'Anonymous',
+              _user!.email ?? ''
+          );
+
+          // Save token to Firestore
+          await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+          // Save to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userId', _user!.uid);
+
+          return true;
+        }
+      } catch (tokenError) {
+        print('Token error: $tokenError');
+
+        // If token error occurs, try to use the current Firebase user if available
+        if (_auth.currentUser != null) {
+          print('Using existing Firebase user despite token error');
+          _user = _auth.currentUser;
+          return true;
+        }
+
+        // If no Firebase user, rethrow the error
+        throw tokenError;
       }
 
       return false;
-    } catch (e) {
-      print('Google sign in error: ${e.toString()}');
+    } catch (e, stackTrace) {
+      print('=== Google Sign In Error ===');
+      print('Error: $e');
+      print('Stack trace: $stackTrace');
       _errorMessage = e.toString();
 
-      // Handle specific error cases
-      if (e.toString().contains('DEVELOPER_ERROR')) {
-        print('Developer error - check SHA certificates and client ID configuration');
-      } else if (e.toString().contains('NETWORK_ERROR')) {
-        print('Network error - check internet connection');
+      // Final check - if user is signed in to Firebase despite the error
+      if (_auth.currentUser != null) {
+        print('User is actually signed in despite error');
+        _user = _auth.currentUser;
+        return true;
       }
 
       return false;
