@@ -90,8 +90,6 @@ class _ModernSplashScreenState extends State<ModernSplashScreen> with SingleTick
     final size = MediaQuery.of(context).size;
 
     return Scaffold(
-      // Set backgroundColor to match the gradient start color
-      backgroundColor: AppColors.primary,
       body: Container(
         width: double.infinity,
         height: double.infinity,
