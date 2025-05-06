@@ -1,57 +1,50 @@
+// lib/main.dart
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
-import 'package:new_tinder_clone/providers/message_provider.dart';
-import 'package:new_tinder_clone/screens/achievements_screen.dart';
-import 'package:new_tinder_clone/screens/boost_screen.dart';
-import 'package:new_tinder_clone/screens/debug_screen.dart';
-import 'package:new_tinder_clone/screens/modern_chat_screen.dart';
-import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
-import 'package:new_tinder_clone/screens/nearby_users_screen.dart';
-import 'package:new_tinder_clone/screens/phone_login_screen.dart';
-import 'package:new_tinder_clone/screens/premium_screen.dart';
-import 'package:new_tinder_clone/screens/profile_verification_screen.dart';
-import 'package:new_tinder_clone/screens/streak_screen.dart';
-import 'package:new_tinder_clone/services/background_notification_handler.dart';
-import 'package:new_tinder_clone/services/firestore_service.dart';
-import 'package:new_tinder_clone/services/location_service.dart';
-import 'package:new_tinder_clone/services/notification_manager.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
-import 'screens/home_screen.dart';
-import 'screens/matches_screen.dart';
-import 'screens/profile_screen.dart';
-import 'screens/chat_screen.dart';
-import 'screens/login_screen.dart';
-import 'screens/splash_screen.dart';
-import 'services/notifications_service.dart';
-import 'theme/app_theme.dart';
-import 'screens/modern_home_screen.dart';
-import 'screens/modern_profile_screen.dart';
-import './widgets/notification_handler.dart';
-import './utils/navigation.dart'; // Add this import
-import 'package:new_tinder_clone/screens/splash_screen.dart'; // Add this import
 
-// Add these imports
-import 'screens/photo_manager_screen.dart';
-import 'screens/filters_screen.dart';
+// Providers
+import 'providers/message_provider.dart';
 import 'providers/user_provider.dart';
 import 'providers/app_auth_provider.dart';
-import 'package:flutter/cupertino.dart';
 
-// Remove this top-level function completely - we'll handle it differently
-// @pragma('vm:entry-point')
-// Future<void> firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-//   // Firebase.initializeApp();
-//   print('Handling a background message: ${message.messageId}');
-// }
+// Services
+import 'services/firestore_service.dart';
+import 'services/location_service.dart';
+import 'services/notification_manager.dart';
+import 'services/notifications_service.dart';
+
+// Screens
+import 'screens/enhanced_home_screen.dart';
+import 'screens/matches_screen.dart';
+import 'screens/enhanced_profile_screen.dart';
+import 'screens/enhanced_chat_screen.dart';
+import 'screens/modern_login_screen.dart';
+import 'screens/modern_splash_screen.dart';
+import 'screens/phone_login_screen.dart';
+import 'screens/filters_screen.dart';
+import 'screens/photo_manager_screen.dart';
+import 'screens/boost_screen.dart';
+import 'screens/premium_screen.dart';
+import 'screens/nearby_users_screen.dart';
+import 'screens/debug_screen.dart';
+import 'screens/achievements_screen.dart';
+import 'screens/streak_screen.dart';
+import 'screens/profile_verification_screen.dart';
+
+// Theme
+import 'theme/app_theme.dart';
+
+// Utils
+import 'utils/navigation.dart';
+import 'widgets/notification_handler.dart';
 
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
-
-
 
   // Initialize notification manager after Firebase is initialized
   final notificationManager = NotificationManager();
@@ -62,8 +55,6 @@ void main() async {
   await firestoreService.verifyFirestoreConnection();
   await firestoreService.createTestUsersIfNeeded();
 
-  print('Firebase initialized successfully');
-
   final notificationsService = NotificationsService();
   await notificationsService.initialize();
 
@@ -71,7 +62,6 @@ void main() async {
   final locationService = LocationService();
 
   // Ensure user authenticated
-  // Ensure user authenticated - Updated version
   void ensureUserAuthenticated() async {
     try {
       final authProvider = FirebaseAuth.instance;
@@ -79,7 +69,6 @@ void main() async {
 
       if (currentUser == null) {
         print('No user authenticated. Launching app without authentication.');
-        // Don't force anonymous sign-in, let the user choose their login method
         return;
       } else {
         print('User already authenticated: ${currentUser.uid}');
@@ -99,7 +88,6 @@ void main() async {
       }
     } catch (e) {
       print('ERROR during authentication check: $e');
-      // Continue launching the app even if there's an error
       if (e.toString().contains('admin-restricted-operation')) {
         print('Anonymous authentication is disabled. Please enable it in Firebase Console.');
       }
@@ -119,13 +107,11 @@ class AuthWrapper extends StatelessWidget {
     return Consumer<AppAuthProvider>(
       builder: (context, authProvider, _) {
         // Always show splash screen first, then navigate based on auth state
-        return const SplashScreen();
+        return const ModernSplashScreen();
       },
     );
   }
 }
-
-// In your main.dart file, update the MyApp widget:
 
 class MyApp extends StatelessWidget {
   const MyApp({Key? key}) : super(key: key);
@@ -141,17 +127,15 @@ class MyApp extends StatelessWidget {
       child: NotificationHandler(
         child: MaterialApp(
           navigatorKey: navigatorKey,
-          title: 'Flutter Tinder Clone',
-          theme: AppTheme.lightTheme.copyWith(
-            scaffoldBackgroundColor: const Color(0xFFFF4458), // Add this
-          ),
+          title: 'STILL - Dating App',
+          theme: AppTheme.lightTheme,
           debugShowCheckedModeBanner: false,
           home: const AuthWrapper(),
           routes: {
-            '/login': (context) => const LoginScreen(),
+            '/login': (context) => const ModernLoginScreen(),
             '/phone-login': (context) => const PhoneLoginScreen(),
             '/main': (context) => const MainScreen(),
-            '/chat': (context) => const ModernChatScreen(),
+            '/chat': (context) => const EnhancedChatScreen(),
             '/photoManager': (context) => const PhotoManagerScreen(),
             '/filters': (context) => const FiltersScreen(),
             '/debug': (context) => const DebugScreen(),
@@ -185,9 +169,9 @@ class MainScreen extends StatefulWidget {
 class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
-    const ModernHomeScreen(),
+    const EnhancedHomeScreen(),
     const MatchesScreen(),
-    const ModernProfileScreen(),
+    const EnhancedProfileScreen(),
   ];
 
   final PageController _pageController = PageController();
@@ -241,7 +225,7 @@ class _MainScreenState extends State<MainScreen> {
         actions: [
           TextButton(
             onPressed: () => Navigator.pop(context),
-            child: Text('OK'),
+            child: const Text('OK'),
           ),
         ],
       ),
@@ -276,34 +260,51 @@ class _MainScreenState extends State<MainScreen> {
         },
         children: _screens,
       ),
-      bottomNavigationBar: BottomNavigationBar(
-        currentIndex: _currentIndex,
-        onTap: (index) {
-          setState(() {
-            _currentIndex = index;
-          });
-          _pageController.animateToPage(
-            index,
-            duration: const Duration(milliseconds: 300),
-            curve: Curves.easeInOut,
-          );
-        },
-        selectedItemColor: Colors.red,
-        unselectedItemColor: Colors.grey,
-        items: const [
-          BottomNavigationBarItem(
-            icon: Icon(Icons.whatshot),
-            label: 'Swipe',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.chat),
-            label: 'Matches',
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(Icons.person),
-            label: 'Profile',
-          ),
-        ],
+      bottomNavigationBar: Container(
+        decoration: BoxDecoration(
+          boxShadow: [
+            BoxShadow(
+              color: Colors.black.withOpacity(0.1),
+              blurRadius: 10,
+              offset: const Offset(0, -2),
+            ),
+          ],
+        ),
+        child: BottomNavigationBar(
+          currentIndex: _currentIndex,
+          onTap: (index) {
+            setState(() {
+              _currentIndex = index;
+            });
+            _pageController.animateToPage(
+              index,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeInOut,
+            );
+          },
+          selectedItemColor: AppColors.primary,
+          unselectedItemColor: Colors.grey,
+          showSelectedLabels: true,
+          showUnselectedLabels: true,
+          type: BottomNavigationBarType.fixed,
+          elevation: 8,
+          backgroundColor: Colors.white,
+          selectedLabelStyle: const TextStyle(fontWeight: FontWeight.bold),
+          items: const [
+            BottomNavigationBarItem(
+              icon: Icon(Icons.whatshot),
+              label: 'Discover',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.chat),
+              label: 'Matches',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.person),
+              label: 'Profile',
+            ),
+          ],
+        ),
       ),
     );
   }
