@@ -3,8 +3,6 @@ package com.example.new_tinder_clone
 import android.app.Application
 import android.content.Context
 import android.webkit.WebView
-import com.facebook.FacebookSdk
-import com.facebook.appevents.AppEventsLogger
 
 class WebViewInitializer {
     companion object {
@@ -34,10 +32,10 @@ class TinderCloneApplication : Application() {
         // Initialize WebView early
         WebViewInitializer.initialize(this)
 
-        // Initialize Facebook SDK
+        // Initialize Facebook SDK (the standard way)
         try {
-            FacebookSdk.sdkInitialize(applicationContext)
-            AppEventsLogger.activateApp(this)
+            com.facebook.FacebookSdk.sdkInitialize(applicationContext)
+            com.facebook.appevents.AppEventsLogger.activateApp(this)
         } catch (e: Exception) {
             android.util.Log.e("FacebookInit", "Error initializing Facebook SDK: ${e.message}")
         }
