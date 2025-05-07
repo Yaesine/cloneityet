@@ -165,22 +165,36 @@ class AppAuthProvider with ChangeNotifier {
   // Facebook Sign In - Properly implemented
   Future<bool> signInWithFacebook() async {
     try {
-      // Trigger the sign-in flow
-      final LoginResult loginResult = await FacebookAuth.instance.login();
+      print('Starting Facebook login process...');
+
+      // Clear any existing login state
+      await FacebookAuth.instance.logOut();
+
+      // Use minimal configuration for the login
+      final LoginResult loginResult = await FacebookAuth.instance.login(
+        permissions: ['email', 'public_profile'],
+        loginBehavior: LoginBehavior.webOnly, // Force WebView login
+      );
+
+      print('Facebook login status: ${loginResult.status}');
+      print('Facebook login message: ${loginResult.message}');
 
       if (loginResult.status == LoginStatus.success) {
-        // Create a credential from the access token
+        print('Facebook login successful, getting credential');
+        print('Access token: ${loginResult.accessToken?.token}');
+
+        // Create credential
         final OAuthCredential facebookAuthCredential =
         FacebookAuthProvider.credential(loginResult.accessToken!.token);
 
-        // Sign in to Firebase with the Facebook [UserCredential]
-        final userCredential =
-        await _auth.signInWithCredential(facebookAuthCredential);
-
+        // Sign in to Firebase
+        final userCredential = await _auth.signInWithCredential(facebookAuthCredential);
         _user = userCredential.user;
 
         if (_user != null) {
-          // Create user profile in Firestore if it doesn't exist
+          print('Firebase authenticated user: ${_user!.uid}');
+
+          // Create user profile in Firestore
           await _firestoreService.createNewUser(
               _user!.uid,
               _user!.displayName ?? 'Anonymous',
@@ -196,14 +210,13 @@ class AppAuthProvider with ChangeNotifier {
 
           return true;
         }
+
+        return false;
       } else {
-        // Handle different login status
-        print('Facebook login status: ${loginResult.status}');
-        print('Facebook login message: ${loginResult.message}');
+        print('Facebook login failed: ${loginResult.message}');
+        _errorMessage = loginResult.message;
         return false;
       }
-
-      return false;
     } catch (e) {
       print('Facebook sign in error: $e');
       _errorMessage = e.toString();
