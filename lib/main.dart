@@ -2,6 +2,8 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:new_tinder_clone/screens/TinderStyleProfileScreen.dart';
+import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
 import 'package:new_tinder_clone/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -140,6 +142,7 @@ class MyApp extends StatelessWidget {
             '/debug': (context) => const DebugScreen(),
             '/boost': (context) => BoostScreen(),
             '/premium': (context) => PremiumScreen(),
+            '/modernProfile': (context) => ModernProfileScreen(), // Add this new route
             '/achievements': (context) => AchievementsScreen(
               unlockedBadges: [],
               availableBadges: [],
@@ -170,7 +173,7 @@ class _MainScreenState extends State<MainScreen> {
   final List<Widget> _screens = [
     const EnhancedHomeScreen(),
     const MatchesScreen(),
-    const EnhancedProfileScreen(),
+    const TinderStyleProfileScreen(),
   ];
 
   final PageController _pageController = PageController();
