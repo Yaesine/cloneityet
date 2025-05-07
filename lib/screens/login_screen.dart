@@ -362,7 +362,7 @@ class _LoginScreenState extends State<LoginScreen> with SingleTickerProviderStat
                         ],
 
                         _buildModernButton(
-                          'Continue with Facebook',
+                          'Continue with FB',
                           'https://upload.wikimedia.org/wikipedia/commons/thumb/0/05/Facebook_Logo_%282019%29.png/1200px-Facebook_Logo_%282019%29.png',
                           const Color(0xFF1877F2),
                               () => _handleFacebookSignIn(),
