@@ -169,21 +169,32 @@ class AppAuthProvider with ChangeNotifier {
 
       // Clear any existing login state
       await FacebookAuth.instance.logOut();
+      print('Previous Facebook sessions cleared');
 
-      // Use minimal configuration for the login
+      // Use a more flexible login behavior instead of webOnly
       final LoginResult loginResult = await FacebookAuth.instance.login(
         permissions: ['email', 'public_profile'],
-        loginBehavior: LoginBehavior.webOnly, // Force WebView login
+        loginBehavior: LoginBehavior.nativeWithFallback, // This tries native app first, then falls back to dialog/web
       );
 
       print('Facebook login status: ${loginResult.status}');
       print('Facebook login message: ${loginResult.message}');
 
       if (loginResult.status == LoginStatus.success) {
-        print('Facebook login successful, getting credential');
-        print('Access token: ${loginResult.accessToken?.token}');
+        // Get user data for better profile creation
+        final userData = await FacebookAuth.instance.getUserData();
+        print('Facebook user data retrieved: ${userData['name']}');
 
-        // Create credential
+        if (loginResult.accessToken == null) {
+          print('Error: Facebook login successful but no access token received');
+          _errorMessage = 'Authentication error: No access token received';
+          notifyListeners();
+          return false;
+        }
+
+        print('Access token received, length: ${loginResult.accessToken!.token.length}');
+
+        // Create Firebase credential
         final OAuthCredential facebookAuthCredential =
         FacebookAuthProvider.credential(loginResult.accessToken!.token);
 
@@ -197,8 +208,8 @@ class AppAuthProvider with ChangeNotifier {
           // Create user profile in Firestore
           await _firestoreService.createNewUser(
               _user!.uid,
-              _user!.displayName ?? 'Anonymous',
-              _user!.email ?? ''
+              _user!.displayName ?? userData['name'] ?? 'New User',
+              _user!.email ?? userData['email'] ?? ''
           );
 
           // Save token to Firestore
@@ -208,23 +219,36 @@ class AppAuthProvider with ChangeNotifier {
           final prefs = await SharedPreferences.getInstance();
           await prefs.setString('userId', _user!.uid);
 
+          notifyListeners();
           return true;
         }
 
+        print('Firebase authentication failed after successful Facebook login');
+        _errorMessage = 'Firebase authentication failed';
+        notifyListeners();
+        return false;
+
+      } else if (loginResult.status == LoginStatus.cancelled) {
+        print('User cancelled Facebook login');
+        _errorMessage = 'Login cancelled';
+        notifyListeners();
         return false;
       } else {
         print('Facebook login failed: ${loginResult.message}');
         _errorMessage = loginResult.message;
+        notifyListeners();
         return false;
       }
     } catch (e) {
       print('Facebook sign in error: $e');
       _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
-  }
+  }  // Apple Sign In - Properly implemented (placeholder for now)
 
-  // Apple Sign In - Properly implemented (placeholder for now)
+
+
   Future<bool> signInWithApple() async {
     try {
       // TODO: Implement Apple Sign In with sign_in_with_apple package

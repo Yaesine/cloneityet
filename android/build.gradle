@@ -2,6 +2,8 @@ buildscript {
     repositories {
         google()
         mavenCentral()
+        jcenter()
+
     }
     dependencies {
         // Add this line for Firebase
@@ -15,6 +17,8 @@ allprojects {
     repositories {
         google()
         mavenCentral()
+        jcenter()
+
     }
 }
 
