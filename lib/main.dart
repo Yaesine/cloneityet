@@ -2,6 +2,7 @@
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
+import 'package:new_tinder_clone/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
@@ -106,7 +107,7 @@ class AuthWrapper extends StatelessWidget {
     return Consumer<AppAuthProvider>(
       builder: (context, authProvider, _) {
         // Always show splash screen first, then navigate based on auth state
-        return const ModernSplashScreen();
+        return const SplashScreen();
       },
     );
   }

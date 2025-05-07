@@ -25,6 +25,8 @@ class _ModernSplashScreenState extends State<ModernSplashScreen> with SingleTick
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1500),
+      lowerBound: 0.0,
+      upperBound: 0.999, // Set slightly below 1.0 to prevent overshooting
     );
 
     _scaleAnimation = TweenSequence<double>([
