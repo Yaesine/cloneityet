@@ -27,10 +27,11 @@
     <application
         android:label="new_tinder_clone"
         android:name="${applicationName}"
-        android:icon="@mipmap/ic_launcher">
+        android:icon="@mipmap/ic_launcher"
+        android:enableOnBackInvokedCallback="true">
 
-        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="@string/facebook_app_id"/>
-        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="@string/facebook_client_token"/>
+        <meta-data android:name="com.facebook.sdk.ApplicationId" android:value="709702088098722"/>
+        <meta-data android:name="com.facebook.sdk.ClientToken" android:value="9ca071e45a8ec857ff44cea74fbd5ec3"/>
 
         <meta-data
             android:name="com.google.firebase.messaging.DEFAULT_NOTIFICATION_ICON"
@@ -41,6 +42,7 @@
         <meta-data
             android:name="com.google.firebase.messaging.DEFAULT_NOTIFICATION_CHANNEL_ID"
             android:value="tinder_clone_channel" />
+
 
         <activity
             android:name=".MainActivity"
@@ -75,10 +77,5 @@
          https://developer.android.com/reference/android/content/Intent#ACTION_PROCESS_TEXT.
 
          In particular, this is used by the Flutter engine in io.flutter.plugin.text.ProcessTextPlugin. -->
-    <queries>
-        <intent>
-            <action android:name="android.intent.action.PROCESS_TEXT"/>
-            <data android:mimeType="text/plain"/>
-        </intent>
-    </queries>
+
 </manifest>

@@ -3,7 +3,6 @@ import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../models/user_model.dart';
 import '../utils/custom_page_route.dart';
-import '../screens/chat_screen.dart';
 import 'modern_chat_screen.dart';
 
 class MatchesScreen extends StatefulWidget {

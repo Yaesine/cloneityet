@@ -23,7 +23,6 @@ import 'screens/matches_screen.dart';
 import 'screens/enhanced_profile_screen.dart';
 import 'screens/enhanced_chat_screen.dart';
 import 'screens/modern_login_screen.dart';
-import 'screens/modern_splash_screen.dart';
 import 'screens/phone_login_screen.dart';
 import 'screens/filters_screen.dart';
 import 'screens/photo_manager_screen.dart';
