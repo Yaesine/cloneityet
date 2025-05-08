@@ -33,6 +33,13 @@ dependencies:
   timeago: ^3.5.0
   country_code_picker: ^3.0.0
 
+flutter_native_splash:
+  color: "#FF4458"
+  image: assets/logo.png
+  android: true
+  ios: true
+
+
 
 
 dev_dependencies:
