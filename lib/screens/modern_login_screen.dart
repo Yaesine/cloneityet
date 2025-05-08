@@ -336,25 +336,8 @@ class _ModernLoginScreenState extends State<ModernLoginScreen> with SingleTicker
 
                         const SizedBox(height: 24),
 
-                        // Sign in link
-                        FadeInAnimation(
-                          delay: const Duration(milliseconds: 1900),
-                          child: TextButton(
-                            onPressed: () {
-                              // Navigate to the email login screen
-                              Navigator.of(context).pushNamed('/email-login');
-                            },
-                            child: Text(
-                              'Sign in with Email',
-                              style: TextStyle(
-                                color: Colors.white,
-                                fontSize: 14,
-                                fontWeight: FontWeight.w500,
-                                decoration: TextDecoration.underline,
-                              ),
-                            ),
-                          ),
-                        ),
+
+
 
                         const SizedBox(height: 32),
                       ],

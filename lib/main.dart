@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:new_tinder_clone/screens/TinderStyleProfileScreen.dart';
-import 'package:new_tinder_clone/screens/email_login_screen.dart';
 import 'package:new_tinder_clone/screens/likes_screen.dart';
 import 'package:new_tinder_clone/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
@@ -143,7 +142,6 @@ class MyApp extends StatelessWidget {
             '/boost': (context) => BoostScreen(),
             '/premium': (context) => PremiumScreen(),
             '/modernProfile': (context) => TinderStyleProfileScreen(), // Add this new route
-            '/email-login': (context) => const EmailLoginScreen(),
             '/achievements': (context) => AchievementsScreen(
               unlockedBadges: [],
               availableBadges: [],

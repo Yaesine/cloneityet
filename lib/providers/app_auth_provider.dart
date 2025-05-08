@@ -83,17 +83,23 @@ class AppAuthProvider with ChangeNotifier {
   }
 
   // TOTAL BYPASS: Register new user without touching problematic APIs
+  // Modified register method for AppAuthProvider.dart
+// Replace the existing register method with this improved version
+
   Future<bool> register(String name, String email, String password) async {
     try {
       _errorMessage = null;
       _isLoading = true;
       notifyListeners();
 
-      print('Starting emergency registration for $email...');
+      // Ensure email is properly formatted (lowercase)
+      final formattedEmail = email.trim().toLowerCase();
 
-      // STEP 1: Create Firebase Auth account WITHOUT ANY PROFILE UPDATES
+      print('Starting registration for $formattedEmail...');
+
+      // STEP 1: Create Firebase Auth account WITHOUT updating profile
       final tempResult = await _auth.createUserWithEmailAndPassword(
-        email: email,
+        email: formattedEmail,
         password: password,
       );
 
@@ -109,31 +115,44 @@ class AppAuthProvider with ChangeNotifier {
       final userId = tempUser.uid;
       print('Firebase Auth account created with ID: $userId');
 
-      // STEP 2: Immediately sign out to prevent triggering the PigeonUserDetails error
-      // This is a radical approach but should work around the plugin issue
+      // STEP 2: Sign out to prevent PigeonUserDetails error
       await _auth.signOut();
       print('Temporary signout to avoid PigeonUserDetails error');
 
-      // STEP 3: Create the Firestore profile with the user's name
-      await _firestoreService.createNewUser(userId, name, email);
-      print('Firestore profile created for user: $name ($email)');
+      // STEP 3: Create the Firestore profile with more info
+      try {
+        await _firestoreService.createNewUser(userId, name, formattedEmail);
+        print('Firestore profile created for user: $name ($formattedEmail)');
+      } catch (e) {
+        print('Error creating Firestore profile: $e');
+        // Continue anyway - we'll try to sign back in
+      }
 
       // STEP 4: Sign back in with the created credentials
-      final signInResult = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
+      try {
+        final signInResult = await _auth.signInWithEmailAndPassword(
+          email: formattedEmail,
+          password: password,
+        );
 
-      final signedInUser = signInResult.user;
-      if (signedInUser == null) {
-        print('Failed to sign back in after profile creation');
+        final signedInUser = signInResult.user;
+        if (signedInUser == null) {
+          print('Failed to sign back in after profile creation');
+          _errorMessage = 'Account created but login failed. Please try logging in manually.';
+          _isLoading = false;
+          notifyListeners();
+          return false;
+        }
+
+        print('Successfully signed back in as: $userId');
+      } catch (e) {
+        print('Error signing back in: $e');
         _errorMessage = 'Account created but login failed. Please try logging in manually.';
         _isLoading = false;
         notifyListeners();
-        return false;
+        // Even though sign-in failed, the account was created successfully
+        return true;
       }
-
-      print('Successfully signed back in as: $userId');
 
       // STEP 5: Save FCM token and other necessary information
       try {
@@ -145,8 +164,13 @@ class AppAuthProvider with ChangeNotifier {
       }
 
       // STEP 6: Save to SharedPreferences
-      final prefs = await SharedPreferences.getInstance();
-      await prefs.setString('userId', userId);
+      try {
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', userId);
+      } catch (e) {
+        print('Error saving to SharedPreferences: $e');
+        // Continue anyway
+      }
 
       print('Registration completed successfully with bypass method');
       _isLoading = false;

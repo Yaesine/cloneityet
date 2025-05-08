@@ -102,6 +102,9 @@ class FirestoreService {
   }
 
   // Create new user after registration
+  // Enhanced createNewUser method for FirestoreService
+// Replace the existing method with this improved version
+
   Future<void> createNewUser(String userId, String name, String email) async {
     try {
       print('Creating user profile for $userId in Firestore');
@@ -113,25 +116,34 @@ class FirestoreService {
         return;
       }
 
-      // Create basic user profile
+      // Generate placeholder image URL based on the name
+      final nameInitial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
+      final placeholderImage = 'https://ui-avatars.com/api/?name=$nameInitial&background=FF4458&color=fff&size=256';
+
+      // Create basic user profile with more fields initialized
       Map<String, dynamic> userData = {
         'id': userId,
         'name': name,
         'email': email,
         'age': 25,
         'bio': 'Tell others about yourself...',
-        'imageUrls': ['https://i.pravatar.cc/300?img=33'],
+        'imageUrls': [placeholderImage],
         'interests': ['Travel', 'Music', 'Movies'],
-        'location': 'New York, NY',
+        'location': 'Abu Dhabi',
         'gender': '',
         'lookingFor': '',
         'distance': 50,
         'ageRangeStart': 18,
         'ageRangeEnd': 50,
+        'createdAt': FieldValue.serverTimestamp(),
+        'lastActive': FieldValue.serverTimestamp(),
       };
 
-      // Directly set the document with a map instead of using User model
-      await _usersCollection.doc(userId).set(userData);
+      // Use a transaction to ensure data consistency
+      await _firestore.runTransaction((transaction) async {
+        transaction.set(_usersCollection.doc(userId), userData);
+      });
+
       print('User profile created successfully for $userId');
     } catch (e) {
       print('Error creating user profile: $e');
