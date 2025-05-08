@@ -80,6 +80,8 @@ Future<void> _completeInitialization() async {
     print('Background initialization error: $e');
   }
 }
+
+
 // Add this function outside of your main() function
 Future<void> ensureUserAuthenticated() async {
   try {

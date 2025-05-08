@@ -21,7 +21,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   void initState() {
     super.initState();
 
-    // Setup animations
+    // Initialize animation controller and animations
     _animationController = AnimationController(
       vsync: this,
       duration: const Duration(milliseconds: 1200),
@@ -35,39 +35,29 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    // Listen for animation completion
-    _animationController.addStatusListener((status) {
-      if (status == AnimationStatus.completed) {
-        setState(() {
-          _animationCompleted = true;
-        });
-        _checkNavigationConditions();
-      }
+    // Begin animation
+    _animationController.forward();
+
+    // Setup simplified navigation
+    Future.delayed(Duration(milliseconds: 1500), () {
+      _navigateToNextScreen();
     });
 
-    // Start animation and initialization in parallel
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _animationController.forward();
-      _initializeAppResources();
-    });
-  }
-
-  // Initialize all resources in parallel
-  Future<void> _initializeAppResources() async {
-    // Don't block app launch - navigate immediately
-    // Set a tiny delay to allow UI to render first
-    Future.delayed(Duration(milliseconds: 100), () {
-      if (mounted) {
-        setState(() {
-          _resourcesInitialized = true;
-        });
-        _checkNavigationConditions();
-      }
-    });
-
-    // Continue loading resources in background
+    // Initialize resources in background
     _loadResourcesInBackground();
   }
+
+  void _navigateToNextScreen() {
+    if (!mounted) return;
+
+    final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+    if (authProvider.isLoggedIn) {
+      Navigator.pushReplacementNamed(context, '/main');
+    } else {
+      Navigator.pushReplacementNamed(context, '/login');
+    }
+  }
+
   Future<void> _loadResourcesInBackground() async {
     try {
       // Initialize auth in background
@@ -75,38 +65,8 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       authProvider.initializeAuth();
 
       // Make sure not to load any location or geocoding services here
-      // Any other resource loading can continue in background
     } catch (e) {
       debugPrint('Background resource loading error: $e');
-    }
-  }
-  // Initialize auth state
-  Future<void> _initializeAuthState() async {
-    try {
-      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      await authProvider.initializeAuth();
-    } catch (e) {
-      debugPrint('Error initializing auth state: $e');
-    }
-  }
-
-  // Preload any critical app data
-  Future<void> _preloadCriticalData() async {
-    // For example, preload user profile or app configuration
-    // You can add actual implementation here
-    await Future.delayed(const Duration(milliseconds: 300));
-  }
-
-  // Check if we should navigate
-  void _checkNavigationConditions() {
-    // Only navigate when both animation is done and resources are loaded
-    if (_resourcesInitialized && _animationCompleted && mounted) {
-      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      if (authProvider.isLoggedIn) {
-        Navigator.pushReplacementNamed(context, '/main');
-      } else {
-        Navigator.pushReplacementNamed(context, '/login');
-      }
     }
   }
 
@@ -194,22 +154,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ),
                     ),
                   ),
-                  // Optional loading indicator
-                  if (!_resourcesInitialized)
-                    Padding(
-                      padding: const EdgeInsets.only(top: 40),
-                      child: Opacity(
-                        opacity: _opacityAnimation.value,
-                        child: const SizedBox(
-                          width: 24,
-                          height: 24,
-                          child: CircularProgressIndicator(
-                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                            strokeWidth: 2,
-                          ),
-                        ),
-                      ),
-                    ),
                 ],
               );
             },
