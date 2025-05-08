@@ -3,7 +3,6 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:new_tinder_clone/screens/TinderStyleProfileScreen.dart';
-import 'package:new_tinder_clone/screens/modern_profile_screen.dart';
 import 'package:new_tinder_clone/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
@@ -31,7 +30,6 @@ import 'screens/photo_manager_screen.dart';
 import 'screens/boost_screen.dart';
 import 'screens/premium_screen.dart';
 import 'screens/nearby_users_screen.dart';
-import 'screens/debug_screen.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/streak_screen.dart';
 import 'screens/profile_verification_screen.dart';
@@ -139,10 +137,9 @@ class MyApp extends StatelessWidget {
             '/chat': (context) => const EnhancedChatScreen(),
             '/photoManager': (context) => const PhotoManagerScreen(),
             '/filters': (context) => const FiltersScreen(),
-            '/debug': (context) => const DebugScreen(),
             '/boost': (context) => BoostScreen(),
             '/premium': (context) => PremiumScreen(),
-            '/modernProfile': (context) => ModernProfileScreen(), // Add this new route
+            '/modernProfile': (context) => TinderStyleProfileScreen(), // Add this new route
             '/achievements': (context) => AchievementsScreen(
               unlockedBadges: [],
               availableBadges: [],
