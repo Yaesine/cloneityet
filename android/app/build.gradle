@@ -28,10 +28,8 @@ android {
     }
 
     configurations.all {
-        resolutionStrategy {
-            force 'androidx.core:core-ktx:1.10.0'
-            force 'androidx.window:window:1.1.0'
-        }
+        exclude group: 'com.baseflow.geolocator', module: 'geolocator_android'
+        exclude group: 'com.baseflow.geocoding', module: 'geocoding'
     }
 
 
@@ -72,20 +70,11 @@ android {
 
     buildTypes {
         release {
-            // Sign the release build with your keystore if available
-            if (keystorePropertiesFile.exists()) {
-                signingConfig signingConfigs.release
-                minifyEnabled true
-                shrinkResources true
-                proguardFiles getDefaultProguardFile('proguard-android-optimize.txt'), 'proguard-rules.pro'
-            } else {
-                // Fallback to debug signing for development
-                signingConfig signingConfigs.debug
-            }
+            signingConfig signingConfigs.debug
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
         debug {
-            signingConfig signingConfigs.debug
-            debuggable true
+            proguardFiles getDefaultProguardFile('proguard-android.txt'), 'proguard-rules.pro'
         }
     }
 }

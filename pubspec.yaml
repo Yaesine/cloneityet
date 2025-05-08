@@ -21,8 +21,8 @@ dependencies:
   firebase_messaging: ^14.7.10
   cloud_functions: ^4.4.0  # Fixed name
   image_picker: ^0.8.9
-  geolocator: ^10.0.1
-  geocoding: ^2.1.1
+  # geolocator: ^10.0.1
+  # geocoding: ^2.1.1
   uuid: ^3.0.7
   google_fonts: ^5.1.0
   confetti: ^0.7.0

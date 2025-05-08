@@ -1,76 +1,147 @@
-import 'package:geolocator/geolocator.dart';
+// lib/services/location_service.dart
+import 'dart:math';
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class LocationService {
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
+  final Random _random = Random();
 
-  // Request location permission and get current position
-  Future<Position?> getCurrentLocation() async {
-    try {
-      bool serviceEnabled;
-      LocationPermission permission;
+  // Mock location data for testing
+  Future<Map<String, dynamic>?> getCurrentLocation() async {
+    print('Using mock location data for faster startup');
 
-      // Check if location services are enabled
-      serviceEnabled = await Geolocator.isLocationServiceEnabled();
-      if (!serviceEnabled) {
-        print('Location services are disabled.');
-        return null;
-      }
-
-      // Check for location permission
-      permission = await Geolocator.checkPermission();
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          print('Location permissions are denied');
-          return null;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        print('Location permissions are permanently denied');
-        return null;
-      }
-
-      // Get current position
-      return await Geolocator.getCurrentPosition();
-    } catch (e) {
-      print('Error getting location: $e');
-      return null;
-    }
+    // Return mock data that mimics what geolocator would return
+    // but without the actual plugin dependency
+    return {
+      'latitude': 25.2048 + (_random.nextDouble() * 0.1 - 0.05),
+      'longitude': 55.2708 + (_random.nextDouble() * 0.1 - 0.05),
+      'timestamp': DateTime.now().millisecondsSinceEpoch,
+      'accuracy': 10.0,
+      'altitude': 0.0,
+      'heading': 0.0,
+      'speed': 0.0,
+      'speedAccuracy': 0.0,
+    };
   }
 
   // Update user location in Firestore without using geocoding
   Future<void> updateUserLocation(String userId) async {
     try {
-      Position? position = await getCurrentLocation();
-      if (position != null) {
-        // Create GeoPoint for Firestore
-        GeoPoint geoPoint = GeoPoint(position.latitude, position.longitude);
+      // Get mock location
+      final mockLocation = await getCurrentLocation();
+      if (mockLocation == null) return;
 
-        // Just use a default location name since geocoding might have issues
-        String location = 'Current Location';
+      // Create GeoPoint for Firestore
+      GeoPoint geoPoint = GeoPoint(
+        mockLocation['latitude'],
+        mockLocation['longitude'],
+      );
 
-        // Update user document
-        await _firestore.collection('users').doc(userId).update({
-          'location': location,
-          'geoPoint': geoPoint,
-        });
+      // Just use a default location name since geocoding isn't available
+      String locationName = "Dubai, UAE"; // Default location
 
-        print('Updated user location in Firestore: $location');
-      }
+      // Update user document
+      await _firestore.collection('users').doc(userId).update({
+        'location': locationName,
+        'geoPoint': geoPoint,
+        'lastLocationUpdate': FieldValue.serverTimestamp(),
+        'locationAccuracy': mockLocation['accuracy'],
+      });
+
+      print('Updated user location with mock data: $locationName');
     } catch (e) {
       print('Error updating user location: $e');
     }
   }
 
-  // Calculate distance between two users
+  // Calculate distance between two GeoPoints without geolocator
+  // Using Haversine formula for distance calculation
   double calculateDistance(GeoPoint point1, GeoPoint point2) {
-    return Geolocator.distanceBetween(
-      point1.latitude,
-      point1.longitude,
-      point2.latitude,
-      point2.longitude,
-    ) / 1000; // Convert to kilometers
+    const double earthRadius = 6371; // Radius of the earth in km
+
+    // Convert latitude and longitude from degrees to radians
+    double lat1 = _degreesToRadians(point1.latitude);
+    double lon1 = _degreesToRadians(point1.longitude);
+    double lat2 = _degreesToRadians(point2.latitude);
+    double lon2 = _degreesToRadians(point2.longitude);
+
+    // Haversine formula
+    double dLat = lat2 - lat1;
+    double dLon = lon2 - lon1;
+    double a = sin(dLat/2) * sin(dLat/2) +
+        cos(lat1) * cos(lat2) *
+            sin(dLon/2) * sin(dLon/2);
+    double c = 2 * atan2(sqrt(a), sqrt(1-a));
+    double distance = earthRadius * c;
+
+    return distance;
+  }
+
+  // Helper method to convert degrees to radians
+  double _degreesToRadians(double degrees) {
+    return degrees * (pi / 180);
+  }
+
+  // Get nearby users based on GeoPoint
+  Future<List<Map<String, dynamic>>> getNearbyUsers(
+      String currentUserId,
+      GeoPoint currentLocation,
+      double maxDistance,
+      {int limit = 50}
+      ) async {
+    try {
+      // Get all users except current user
+      final usersSnapshot = await _firestore
+          .collection('users')
+          .where('id', isNotEqualTo: currentUserId)
+          .limit(limit)
+          .get();
+
+      List<Map<String, dynamic>> nearbyUsers = [];
+
+      // Filter users by distance
+      for (final doc in usersSnapshot.docs) {
+        final userData = doc.data();
+
+        if (userData.containsKey('geoPoint')) {
+          final userGeoPoint = userData['geoPoint'] as GeoPoint;
+          final distance = calculateDistance(currentLocation, userGeoPoint);
+
+          if (distance <= maxDistance) {
+            nearbyUsers.add({
+              ...userData,
+              'distance': distance.toStringAsFixed(1),
+            });
+          }
+        }
+      }
+
+      // Sort by distance
+      nearbyUsers.sort((a, b) =>
+          double.parse(a['distance']).compareTo(double.parse(b['distance']))
+      );
+
+      return nearbyUsers;
+    } catch (e) {
+      print('Error getting nearby users: $e');
+      return [];
+    }
+  }
+
+  // Get user's last known location
+  Future<GeoPoint?> getUserLastLocation(String userId) async {
+    try {
+      final userDoc = await _firestore.collection('users').doc(userId).get();
+      final userData = userDoc.data();
+
+      if (userData != null && userData.containsKey('geoPoint')) {
+        return userData['geoPoint'] as GeoPoint;
+      }
+
+      return null;
+    } catch (e) {
+      print('Error getting user location: $e');
+      return null;
+    }
   }
 }

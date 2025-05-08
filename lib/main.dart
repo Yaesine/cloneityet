@@ -35,6 +35,7 @@ import 'screens/nearby_users_screen.dart';
 import 'screens/achievements_screen.dart';
 import 'screens/streak_screen.dart';
 import 'screens/profile_verification_screen.dart';
+import 'dart:developer' as developer;
 
 // Theme
 import 'theme/app_theme.dart';
@@ -44,61 +45,86 @@ import 'utils/navigation.dart';
 import 'widgets/notification_handler.dart';
 
 void main() async {
+  developer.Timeline.startSync('App Start');
+
+  // Measure Flutter initialization
+  developer.Timeline.startSync('Flutter Init');
   WidgetsFlutterBinding.ensureInitialized();
+  developer.Timeline.finishSync();
+
+  // Measure Firebase initialization
+  developer.Timeline.startSync('Firebase Init');
   await Firebase.initializeApp();
+  developer.Timeline.finishSync();
+
+  // Start the app UI immediately
+  developer.Timeline.startSync('Run App');
   runApp(const MyApp());
+  developer.Timeline.finishSync();
 
-  // Initialize notification manager after Firebase is initialized
-  final notificationManager = NotificationManager();
-  await notificationManager.initialize();
+  // Background work after app starts
+  _completeInitialization();
 
-  // Initialize Firebase services
-  final firestoreService = FirestoreService();
-  await firestoreService.verifyFirestoreConnection();
-  await firestoreService.createTestUsersIfNeeded();
+  developer.Timeline.finishSync(); // App Start
+}
 
-  final notificationsService = NotificationsService();
-  await notificationsService.initialize();
+Future<void> _completeInitialization() async {
+  try {
+    // Lower priority initialization that can happen after UI is shown
+    final firestoreService = FirestoreService();
+    await firestoreService.verifyFirestoreConnection();
+    await ensureUserAuthenticated();
 
-  // Initialize location services
-  final locationService = LocationService();
+    // DO NOT initialize any location or geocoding services
+  } catch (e) {
+    print('Background initialization error: $e');
+  }
+}
+// Add this function outside of your main() function
+Future<void> ensureUserAuthenticated() async {
+  try {
+    final authProvider = FirebaseAuth.instance;
+    final currentUser = authProvider.currentUser;
 
-  // Ensure user authenticated
-  void ensureUserAuthenticated() async {
-    try {
-      final authProvider = FirebaseAuth.instance;
-      final currentUser = authProvider.currentUser;
+    if (currentUser == null) {
+      print('No authenticated user at startup');
+      return;
+    } else {
+      print('Auth state changed: User authenticated');
 
-      if (currentUser == null) {
-        print('No user authenticated. Launching app without authentication.');
-        return;
+      // Check if user exists in Firestore
+      final userDoc = await FirebaseFirestore.instance
+          .collection('users')
+          .doc(currentUser.uid)
+          .get();
+
+      if (!userDoc.exists) {
+        print('Creating new user profile in Firestore');
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .set({
+          'id': currentUser.uid,
+          'name': currentUser.displayName ?? 'New User',
+          'email': currentUser.email ?? '',
+          'createdAt': FieldValue.serverTimestamp(),
+          'lastLogin': FieldValue.serverTimestamp(),
+        });
       } else {
-        print('User already authenticated: ${currentUser.uid}');
+        print('Found existing user profile');
 
-        // Check if user exists in Firestore
-        final firestoreService = FirestoreService();
-        final existingUser = await firestoreService.getUserData(currentUser.uid);
-
-        if (existingUser == null) {
-          print('Creating user profile in Firestore');
-          await firestoreService.createNewUser(
-              currentUser.uid,
-              currentUser.displayName ?? 'User',
-              currentUser.email ?? ''
-          );
-        }
-      }
-    } catch (e) {
-      print('ERROR during authentication check: $e');
-      if (e.toString().contains('admin-restricted-operation')) {
-        print('Anonymous authentication is disabled. Please enable it in Firebase Console.');
+        // Update last login timestamp
+        await FirebaseFirestore.instance
+            .collection('users')
+            .doc(currentUser.uid)
+            .update({'lastLogin': FieldValue.serverTimestamp()});
       }
     }
+  } catch (e) {
+    print('Error during authentication check: $e');
   }
-
-  ensureUserAuthenticated();
-
 }
+
 
 class AuthWrapper extends StatelessWidget {
   const AuthWrapper({Key? key}) : super(key: key);
@@ -179,37 +205,45 @@ class _MainScreenState extends State<MainScreen> {
 
   final PageController _pageController = PageController();
 
+  // In your MainScreen class
   @override
   void initState() {
     super.initState();
     WidgetsBinding.instance.addPostFrameCallback((_) async {
       _initializeNotificationHandler();
 
-      final notificationManager = NotificationManager();
-      await notificationManager.initialize();
-
+      // First load user data and ui components
       final userProvider = Provider.of<UserProvider>(context, listen: false);
       await userProvider.forceSyncCurrentUser();
       await userProvider.loadCurrentUser();
 
-      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      final userId = authProvider.currentUserId;
-
-      if (userId.isNotEmpty) {
-        final locationService = LocationService();
-        await locationService.updateUserLocation(userId);
-      }
-
-      await userProvider.loadPotentialMatches();
+      // Load matches and other data
       await userProvider.loadMatches();
-
-      // Load the new likes and visitors data
       await userProvider.loadUsersWhoLikedMe();
       await userProvider.loadProfileVisitors();
 
-      // Start all streams
+      // Start streams
       userProvider.startMatchesStream();
       userProvider.startVisitorsAndLikesStreams();
+
+      // ONLY NOW load potential matches which might depend on location
+      await userProvider.loadPotentialMatches();
+
+      // Delay location services further
+      await Future.delayed(const Duration(seconds: 2));
+
+      // Only now update location if user is authenticated
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      final userId = authProvider.currentUserId;
+      if (userId.isNotEmpty) {
+        try {
+          final locationService = LocationService();
+          await locationService.updateUserLocation(userId);
+        } catch (e) {
+          print('Error updating location: $e');
+          // Don't let location errors affect app usage
+        }
+      }
     });
   }
 

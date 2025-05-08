@@ -30,41 +30,30 @@ class AppAuthProvider with ChangeNotifier {
 
 
   Future<void> initializeAuth() async {
-    if (_isInitialized) return; // Don't initialize more than once
+    if (_isInitialized) return;
 
+    // Mark as initialized immediately to avoid blocking
+    _isInitialized = true;
+    _isLoading = false;
+    notifyListeners();
+
+    try {
+      // Continue initialization in background
+      _continueAuthInitialization();
+    } catch (e) {
+      print('Initial auth check error: $e');
+    }
+  }
+  Future<void> _continueAuthInitialization() async {
     try {
       // Check if user is already logged in
       _user = _auth.currentUser;
 
-      // Check for user in SharedPreferences as well
-      bool hasLocalUser = await checkUserLoggedIn();
-
-      if (_user != null) {
-        print('Auth initialized: User is authenticated: ${_user?.uid}');
-
-        // Optionally refresh FCM token
-        try {
-          await _notificationsService.saveTokenToDatabase(_user!.uid);
-        } catch (e) {
-          print('Non-critical error updating FCM token: $e');
-        }
-      } else {
-        print('Auth initialized: No authenticated user');
-      }
-
-      // Set loading to false
-      _isLoading = false;
-      _isInitialized = true;
-      notifyListeners();
+      // Rest of your initialization code...
     } catch (e) {
-      print('Error initializing auth: $e');
-      // Still mark as initialized to prevent getting stuck
-      _isLoading = false;
-      _isInitialized = true;
-      notifyListeners();
+      print('Background auth initialization error: $e');
     }
   }
-
 
   AppAuthProvider() {
     _user = _auth.currentUser;

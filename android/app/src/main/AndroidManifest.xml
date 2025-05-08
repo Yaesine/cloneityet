@@ -20,6 +20,8 @@
         android:label="new_tinder_clone"
         android:name=".TinderCloneApplication"
         android:icon="@mipmap/ic_launcher"
+        android:hardwareAccelerated="true"
+        android:largeHeap="true"
         android:usesCleartextTraffic="true"> <!-- Allow HTTP connections for WebView -->
 
         <!-- Facebook config -->

@@ -54,34 +54,32 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
 
   // Initialize all resources in parallel
   Future<void> _initializeAppResources() async {
-    try {
-      // Load critical resources in parallel
-      await Future.wait([
-        _initializeAuthState(),
-        _preloadCriticalData(),
-        // Add minimum delay to ensure good user experience
-        Future.delayed(const Duration(milliseconds: 800)),
-      ]);
+    // Don't block app launch - navigate immediately
+    // Set a tiny delay to allow UI to render first
+    Future.delayed(Duration(milliseconds: 100), () {
+      if (mounted) {
+        setState(() {
+          _resourcesInitialized = true;
+        });
+        _checkNavigationConditions();
+      }
+    });
 
-      // Mark initialization as complete
-      if (mounted) {
-        setState(() {
-          _resourcesInitialized = true;
-        });
-        _checkNavigationConditions();
-      }
+    // Continue loading resources in background
+    _loadResourcesInBackground();
+  }
+  Future<void> _loadResourcesInBackground() async {
+    try {
+      // Initialize auth in background
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      authProvider.initializeAuth();
+
+      // Make sure not to load any location or geocoding services here
+      // Any other resource loading can continue in background
     } catch (e) {
-      debugPrint('Error initializing resources: $e');
-      // Still mark as initialized to prevent getting stuck
-      if (mounted) {
-        setState(() {
-          _resourcesInitialized = true;
-        });
-        _checkNavigationConditions();
-      }
+      debugPrint('Background resource loading error: $e');
     }
   }
-
   // Initialize auth state
   Future<void> _initializeAuthState() async {
     try {
