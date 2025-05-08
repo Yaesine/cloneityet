@@ -14,17 +14,20 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
+  bool _resourcesInitialized = false;
+  bool _animationCompleted = false;
 
   @override
   void initState() {
     super.initState();
 
+    // Setup animations
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200), // Faster animation
+      duration: const Duration(milliseconds: 1200),
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate( // Start from 0.5 instead of 0
+    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
 
@@ -32,22 +35,81 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    // Start animation immediately
-    WidgetsBinding.instance.addPostFrameCallback((_) {
-      _animationController.forward();
-    });
-
-    // Navigate after shorter delay
-    Timer(const Duration(milliseconds: 1800), () {
-      if (mounted) {
-        final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-        if (authProvider.isLoggedIn) {
-          Navigator.pushReplacementNamed(context, '/main');
-        } else {
-          Navigator.pushReplacementNamed(context, '/login');
-        }
+    // Listen for animation completion
+    _animationController.addStatusListener((status) {
+      if (status == AnimationStatus.completed) {
+        setState(() {
+          _animationCompleted = true;
+        });
+        _checkNavigationConditions();
       }
     });
+
+    // Start animation and initialization in parallel
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _animationController.forward();
+      _initializeAppResources();
+    });
+  }
+
+  // Initialize all resources in parallel
+  Future<void> _initializeAppResources() async {
+    try {
+      // Load critical resources in parallel
+      await Future.wait([
+        _initializeAuthState(),
+        _preloadCriticalData(),
+        // Add minimum delay to ensure good user experience
+        Future.delayed(const Duration(milliseconds: 800)),
+      ]);
+
+      // Mark initialization as complete
+      if (mounted) {
+        setState(() {
+          _resourcesInitialized = true;
+        });
+        _checkNavigationConditions();
+      }
+    } catch (e) {
+      debugPrint('Error initializing resources: $e');
+      // Still mark as initialized to prevent getting stuck
+      if (mounted) {
+        setState(() {
+          _resourcesInitialized = true;
+        });
+        _checkNavigationConditions();
+      }
+    }
+  }
+
+  // Initialize auth state
+  Future<void> _initializeAuthState() async {
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      await authProvider.initializeAuth();
+    } catch (e) {
+      debugPrint('Error initializing auth state: $e');
+    }
+  }
+
+  // Preload any critical app data
+  Future<void> _preloadCriticalData() async {
+    // For example, preload user profile or app configuration
+    // You can add actual implementation here
+    await Future.delayed(const Duration(milliseconds: 300));
+  }
+
+  // Check if we should navigate
+  void _checkNavigationConditions() {
+    // Only navigate when both animation is done and resources are loaded
+    if (_resourcesInitialized && _animationCompleted && mounted) {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      if (authProvider.isLoggedIn) {
+        Navigator.pushReplacementNamed(context, '/main');
+      } else {
+        Navigator.pushReplacementNamed(context, '/login');
+      }
+    }
   }
 
   @override
@@ -59,7 +121,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      backgroundColor: const Color(0xFFFF4458), // Set Tinder red as background
+      backgroundColor: const Color(0xFFFF4458),
       body: Container(
         decoration: const BoxDecoration(
           gradient: LinearGradient(
@@ -134,6 +196,22 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
                       ),
                     ),
                   ),
+                  // Optional loading indicator
+                  if (!_resourcesInitialized)
+                    Padding(
+                      padding: const EdgeInsets.only(top: 40),
+                      child: Opacity(
+                        opacity: _opacityAnimation.value,
+                        child: const SizedBox(
+                          width: 24,
+                          height: 24,
+                          child: CircularProgressIndicator(
+                            valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
+                            strokeWidth: 2,
+                          ),
+                        ),
+                      ),
+                    ),
                 ],
               );
             },

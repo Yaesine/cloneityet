@@ -18,6 +18,7 @@ class AppAuthProvider with ChangeNotifier {
   User? _user;
   String? _errorMessage;
   bool _isLoading = true;
+  bool _isInitialized = false;  // Add this flag
 
   // Getters
   User? get user => _auth.currentUser;
@@ -25,6 +26,45 @@ class AppAuthProvider with ChangeNotifier {
   String get currentUserId => _auth.currentUser?.uid ?? '';
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
+  bool get isInitialized => _isInitialized;  // Add this getter
+
+
+  Future<void> initializeAuth() async {
+    if (_isInitialized) return; // Don't initialize more than once
+
+    try {
+      // Check if user is already logged in
+      _user = _auth.currentUser;
+
+      // Check for user in SharedPreferences as well
+      bool hasLocalUser = await checkUserLoggedIn();
+
+      if (_user != null) {
+        print('Auth initialized: User is authenticated: ${_user?.uid}');
+
+        // Optionally refresh FCM token
+        try {
+          await _notificationsService.saveTokenToDatabase(_user!.uid);
+        } catch (e) {
+          print('Non-critical error updating FCM token: $e');
+        }
+      } else {
+        print('Auth initialized: No authenticated user');
+      }
+
+      // Set loading to false
+      _isLoading = false;
+      _isInitialized = true;
+      notifyListeners();
+    } catch (e) {
+      print('Error initializing auth: $e');
+      // Still mark as initialized to prevent getting stuck
+      _isLoading = false;
+      _isInitialized = true;
+      notifyListeners();
+    }
+  }
+
 
   AppAuthProvider() {
     _user = _auth.currentUser;

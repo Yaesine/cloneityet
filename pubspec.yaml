@@ -9,6 +9,7 @@ environment:
 dependencies:
   flutter:
     sdk: flutter
+  flutter_native_splash: ^2.3.6
   provider: ^6.0.5
   shared_preferences: ^2.2.1
   intl: ^0.18.1
@@ -20,8 +21,8 @@ dependencies:
   firebase_messaging: ^14.7.10
   cloud_functions: ^4.4.0  # Fixed name
   image_picker: ^0.8.9
-  geolocator: ^9.0.2
-  geocoding: ^2.1.0
+  geolocator: ^10.0.1
+  geocoding: ^2.1.1
   uuid: ^3.0.7
   google_fonts: ^5.1.0
   confetti: ^0.7.0
@@ -32,10 +33,12 @@ dependencies:
   timeago: ^3.5.0
   country_code_picker: ^3.0.0
 
+
+
 dev_dependencies:
   flutter_test:
     sdk: flutter
-  flutter_lints: ^2.0.0
+  flutter_lints: ^3.0.0
 
 flutter:
   uses-material-design: true
@@ -46,3 +49,4 @@ flutter:
   #       - asset: fonts/Roboto-Regular.ttf
   #       - asset: fonts/Roboto-Bold.ttf
   #         weight: 700
+

@@ -46,6 +46,7 @@ import 'widgets/notification_handler.dart';
 void main() async {
   WidgetsFlutterBinding.ensureInitialized();
   await Firebase.initializeApp();
+  runApp(const MyApp());
 
   // Initialize notification manager after Firebase is initialized
   final notificationManager = NotificationManager();
@@ -97,7 +98,6 @@ void main() async {
 
   ensureUserAuthenticated();
 
-  runApp(const MyApp());
 }
 
 class AuthWrapper extends StatelessWidget {
@@ -131,7 +131,7 @@ class MyApp extends StatelessWidget {
           title: 'STILL - Dating App',
           theme: AppTheme.lightTheme,
           debugShowCheckedModeBanner: false,
-          home: const AuthWrapper(),
+          home: const SplashScreen(),
           routes: {
             '/login': (context) => const ModernLoginScreen(),
             '/phone-login': (context) => const PhoneLoginScreen(),
