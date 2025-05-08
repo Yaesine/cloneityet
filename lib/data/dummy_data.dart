@@ -5,50 +5,35 @@ class DummyData {
   static List<User> getDummyUsers() {
     return [
       User(
-        id: 'user_1',
-        name: 'Sophie',
-        age: 28,
-        bio: 'Travel enthusiast and coffee addict. Love hiking and exploring new places.',
-        imageUrls: ['https://i.pravatar.cc/300?img=1', 'https://i.pravatar.cc/300?img=5'],
-        interests: ['Travel', 'Coffee', 'Hiking', 'Photography'],
-        location: 'New York, NY',
+         id: 'test_user_1',
+         name: 'Sophia',
+         age: 28,
+         bio: 'Travel enthusiast and coffee addict',
+         imageUrls: ['https://images.unsplash.com/photo-1484608856193-968d2be4080e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTUyfHxXT01BTnxlbnwwfHwwfHx8MA%3D%3D','https://images.unsplash.com/photo-1469460340997-2f854421e72f?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDN8fHxlbnwwfHx8fHw%3D', 'https://images.unsplash.com/photo-1485968579580-b6d095142e6e?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxzZWFyY2h8MTU0fHxXT01BTnxlbnwwfHwwfHx8MA%3D%3D'],
+         interests: ['Travel', 'Coffee', 'Photography','cat'],
+         location: 'Abu Dhabi',
       ),
+
       User(
-        id: 'user_2',
-        name: 'James',
-        age: 32,
-        bio: 'Software developer by day, chef by night. Looking for someone to share meals with.',
-        imageUrls: ['https://i.pravatar.cc/300?img=3', 'https://i.pravatar.cc/300?img=7'],
-        interests: ['Coding', 'Cooking', 'Movies', 'Running'],
-        location: 'Brooklyn, NY',
+        id: 'test_user_2',
+        name: 'Laila',
+        age: 18,
+        bio: 'Architectural designer with a passion for sustainable spaces',
+        imageUrls: ['https://images.pexels.com/photos/2205647/pexels-photo-2205647.jpeg?auto=compress&cs=tinysrgb&w=1260&h=750&dpr=1',],
+        interests: ['Sustainable Architecture', 'Interior Design', 'Urban Gardens', 'Pottery'],
+        location: 'Dubai',
       ),
+
       User(
         id: 'user_3',
-        name: 'Emma',
-        age: 26,
-        bio: 'Art lover and yoga instructor. Passionate about sustainability and mindful living.',
-        imageUrls: ['https://i.pravatar.cc/300?img=9', 'https://i.pravatar.cc/300?img=11'],
-        interests: ['Yoga', 'Art', 'Sustainability', 'Reading'],
-        location: 'Queens, NY',
-      ),
-      User(
-        id: 'user_4',
-        name: 'Michael',
+        name: 'Celena',
         age: 30,
-        bio: 'Music producer and drummer. Love concerts and discovering new bands.',
-        imageUrls: ['https://i.pravatar.cc/300?img=13', 'https://i.pravatar.cc/300?img=15'],
-        interests: ['Music', 'Concerts', 'Drums', 'Traveling'],
-        location: 'Manhattan, NY',
+        bio: 'Marine biologist and ocean conservation advocate',
+        imageUrls: ['https://images.unsplash.com/photo-1622347434466-147a44cffda7?q=80&w=1935&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D','https://images.unsplash.com/photo-1646553918743-a78a6da06036?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDI0fHx8ZW58MHx8fHx8','https://images.unsplash.com/photo-1646634676853-fe6e7cfb7e42?q=80&w=1964&auto=format&fit=crop&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8fA%3D%3D','https://images.unsplash.com/photo-1646554782707-8d4451d87242?w=500&auto=format&fit=crop&q=60&ixlib=rb-4.1.0&ixid=M3wxMjA3fDB8MHxwaG90by1yZWxhdGVkfDN8fHxlbnwwfHx8fHw%3D',],
+        interests: ['Ocean Conservation', 'Diving', 'Marine Photography', 'Beach Cleanups'],
+        location: 'Abu Dhabi',
       ),
-      User(
-        id: 'user_5',
-        name: 'Olivia',
-        age: 27,
-        bio: 'PhD student in marine biology. Beach lover and scuba diving enthusiast.',
-        imageUrls: ['https://i.pravatar.cc/300?img=17', 'https://i.pravatar.cc/300?img=19'],
-        interests: ['Scuba Diving', 'Ocean', 'Science', 'Books'],
-        location: 'Jersey City, NJ',
-      ),
+
     ];
   }
 

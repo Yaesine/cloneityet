@@ -2,7 +2,7 @@ import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 
-import '../animations/match_animation.dart';
+import '../animations/modern_match_animation.dart';
 import '../models/user_model.dart';
 import '../providers/user_provider.dart';
 import '../services/firestore_service.dart';
@@ -398,7 +398,7 @@ class UserProfileDetail extends StatelessWidget {
                         PageRouteBuilder(
                           opaque: false,
                           pageBuilder: (context, animation, secondaryAnimation) {
-                            return MatchAnimation(
+                            return ModernMatchAnimation(
                               currentUser: currentUser,
                               matchedUser: matchedUser,
                               onDismiss: () {
