@@ -1,3 +1,4 @@
+// lib/providers/user_provider.dart - Updated with likes and visitors functionality
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;  // Use alias for Firebase Auth
 import 'package:flutter/material.dart';
@@ -17,6 +18,10 @@ class UserProvider with ChangeNotifier {
   bool _isLoading = false;
   String? _errorMessage;
 
+  // New properties for likes tab
+  List<User> _usersWhoLikedMe = [];
+  List<Map<String, dynamic>> _profileVisitors = [];
+
   // Getters
   List<User> get potentialMatches => _potentialMatches;
   List<Match> get matches => _matches;
@@ -25,20 +30,31 @@ class UserProvider with ChangeNotifier {
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
+  // New getters for likes tab
+  List<User> get usersWhoLikedMe => _usersWhoLikedMe;
+  List<Map<String, dynamic>> get profileVisitors => _profileVisitors;
+
   // Initialize and load current user data
   Future<void> initialize() async {
     await loadCurrentUser();
     await loadPotentialMatches();
     await loadMatches();
+    await loadUsersWhoLikedMe();
+    await loadProfileVisitors();
   }
 
-  Future<void> superLike(String userId) async {
+  // Improved SuperLike function with visual feedback and special match handling
+  Future<User?> superLike(String userId) async {
     try {
+      _isLoading = true;
+      notifyListeners();
+
       bool isMatch = await _firestoreService.recordSwipe(userId, true, isSuperLike: true);
+      User? matchedUser;
 
       if (isMatch) {
         // If it's a match, load the matched user
-        final matchedUser = await _firestoreService.getUserData(userId);
+        matchedUser = await _firestoreService.getUserData(userId);
         if (matchedUser != null) {
           // Create match objects
           final newMatch = Match(
@@ -46,18 +62,41 @@ class UserProvider with ChangeNotifier {
             userId: _firestoreService.currentUserId!,
             matchedUserId: userId,
             timestamp: DateTime.now(),
+            // Add superLike flag to indicate this was a super like match
+            superLike: true,
           );
 
           _matches.add(newMatch);
           _matchedUsers.add(matchedUser);
+
+          // Send special notification for SuperLike matches
+          await _firestoreService.sendSuperLikeMatchNotification(
+              userId,
+              _currentUser?.name ?? 'Someone'
+          );
         }
+      } else {
+        // Even if not a match, notify the user about the SuperLike
+        await _firestoreService.sendSuperLikeNotification(
+            userId,
+            _currentUser?.name ?? 'Someone'
+        );
       }
 
-      // Remove from potential matches
+      // Remove from potential matches and users who liked me lists
       _potentialMatches.removeWhere((user) => user.id == userId);
+      _usersWhoLikedMe.removeWhere((user) => user.id == userId);
+
+      _isLoading = false;
       notifyListeners();
+
+      // Return the matched user if there was a match
+      return matchedUser;
     } catch (e) {
       print('Error super liking: $e');
+      _isLoading = false;
+      notifyListeners();
+      return null;
     }
   }
 
@@ -121,6 +160,48 @@ class UserProvider with ChangeNotifier {
       _isLoading = false;
       notifyListeners();
       print('==== FINISHED LOADING POTENTIAL MATCHES ====');
+    }
+  }
+
+  // Load users who have liked the current user
+  Future<void> loadUsersWhoLikedMe() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      if (_firestoreService.currentUserId == null) {
+        throw Exception('No current user ID available');
+      }
+
+      _usersWhoLikedMe = await _firestoreService.getUsersWhoLikedMe();
+      print('Loaded ${_usersWhoLikedMe.length} users who liked me');
+    } catch (e) {
+      print('Error loading users who liked me: $e');
+      _usersWhoLikedMe = []; // Reset to empty list on error
+    } finally {
+      _isLoading = false;
+      notifyListeners();
+    }
+  }
+
+  // Load users who have visited current user's profile
+  Future<void> loadProfileVisitors() async {
+    _isLoading = true;
+    notifyListeners();
+
+    try {
+      if (_firestoreService.currentUserId == null) {
+        throw Exception('No current user ID available');
+      }
+
+      _profileVisitors = await _firestoreService.getProfileVisitors();
+      print('Loaded ${_profileVisitors.length} profile visitors');
+    } catch (e) {
+      print('Error loading profile visitors: $e');
+      _profileVisitors = []; // Reset to empty list on error
+    } finally {
+      _isLoading = false;
+      notifyListeners();
     }
   }
 
@@ -199,6 +280,7 @@ class UserProvider with ChangeNotifier {
     try {
       await _firestoreService.recordSwipe(userId, false);
       _potentialMatches.removeWhere((user) => user.id == userId);
+      _usersWhoLikedMe.removeWhere((user) => user.id == userId);
       notifyListeners();
     } catch (e) {
       print('Error swiping left: $e');
@@ -225,11 +307,18 @@ class UserProvider with ChangeNotifier {
 
           _matches.add(newMatch);
           _matchedUsers.add(matchedUser);
+
+          // Send match notification
+          await _firestoreService.sendMatchNotification(
+              userId,
+              _currentUser?.name ?? 'Someone'
+          );
         }
       }
 
-      // Remove from potential matches regardless of match result
+      // Remove from potential matches and users who liked me lists
       _potentialMatches.removeWhere((user) => user.id == userId);
+      _usersWhoLikedMe.removeWhere((user) => user.id == userId);
       notifyListeners();
 
       // Return the matched user if there was a match
@@ -264,6 +353,21 @@ class UserProvider with ChangeNotifier {
     _firestoreService.matchesStream().listen((matches) {
       _matches = matches;
       _loadMatchedUsers();
+      notifyListeners();
+    });
+  }
+
+  // Start visitors and likes streams
+  void startVisitorsAndLikesStreams() {
+    // Listen for profile visitors
+    _firestoreService.profileVisitorsStream().listen((visitors) {
+      _profileVisitors = visitors;
+      notifyListeners();
+    });
+
+    // Listen for users who liked me
+    _firestoreService.usersWhoLikedMeStream().listen((users) {
+      _usersWhoLikedMe = users;
       notifyListeners();
     });
   }

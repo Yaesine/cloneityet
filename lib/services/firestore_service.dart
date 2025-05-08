@@ -1,3 +1,4 @@
+// lib/services/firestore_service.dart - Updated with new functionality
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart' as auth;
 import '../models/user_model.dart';
@@ -19,6 +20,8 @@ class FirestoreService {
   FirebaseFirestore.instance.collection('messages');
   final CollectionReference _swipesCollection =
   FirebaseFirestore.instance.collection('swipes');
+  final CollectionReference _profileViewsCollection =
+  FirebaseFirestore.instance.collection('profile_views');
 
   // Get current user ID
   String? get currentUserId => _auth.currentUser?.uid;
@@ -164,7 +167,6 @@ class FirestoreService {
   }
 
   // Get potential matches (users that are not current user and not already matched or swiped)
-  // Get potential matches (users that are not current user and not already matched or swiped)
   Future<List<User>> getPotentialMatches() async {
     try {
       if (currentUserId == null) {
@@ -227,34 +229,113 @@ class FirestoreService {
     }
   }
 
-  // Get all users (for debugging)
-  Future<List<User>> getAllUsers() async {
+  // Get users who have liked the current user
+  Future<List<User>> getUsersWhoLikedMe() async {
     try {
-      print('GETTING ALL USERS FOR DEBUGGING');
+      if (currentUserId == null) {
+        print('No current user ID available');
+        return [];
+      }
 
-      List<User> allUsers = [];
-      QuerySnapshot usersSnapshot = await _usersCollection.get();
+      // Find swipes where other users liked the current user
+      QuerySnapshot swipesSnapshot = await _swipesCollection
+          .where('swipedId', isEqualTo: currentUserId)
+          .where('liked', isEqualTo: true)
+          .get();
 
-      print('Total users in database: ${usersSnapshot.docs.length}');
+      print('Found ${swipesSnapshot.docs.length} users who liked me');
 
-      for (var doc in usersSnapshot.docs) {
+      // Extract user IDs of users who liked the current user
+      List<String> likedByUserIds = [];
+      for (var doc in swipesSnapshot.docs) {
         try {
-          User user = User.fromFirestore(doc);
-          allUsers.add(user);
-          print('Found user: ${user.name} (ID: ${user.id})');
+          String swiperId = (doc.data() as Map<String, dynamic>)['swiperId'] as String;
+
+          // Skip users that are already matched
+          if (!await isMatched(swiperId)) {
+            likedByUserIds.add(swiperId);
+          }
         } catch (e) {
-          print('Error parsing user data: $e');
+          print('Error parsing swipe record: $e');
         }
       }
 
-      return allUsers;
+      // Get user details for each liker
+      List<User> likedByUsers = [];
+      for (String userId in likedByUserIds) {
+        User? user = await getUserData(userId);
+        if (user != null) {
+          likedByUsers.add(user);
+        }
+      }
+
+      return likedByUsers;
     } catch (e) {
-      print('Error getting all users: $e');
+      print('Error getting users who liked me: $e');
       return [];
     }
   }
 
-  // Record a swipe decision
+  // Check if a user is already matched with the current user
+  Future<bool> isMatched(String otherUserId) async {
+    if (currentUserId == null) return false;
+
+    // Check if there's a match document where the users are matched
+    QuerySnapshot matchSnapshot = await _matchesCollection
+        .where('userId', isEqualTo: currentUserId)
+        .where('matchedUserId', isEqualTo: otherUserId)
+        .limit(1)
+        .get();
+
+    return matchSnapshot.docs.isNotEmpty;
+  }
+
+  // Get profile visitors
+  Future<List<Map<String, dynamic>>> getProfileVisitors() async {
+    try {
+      if (currentUserId == null) {
+        print('No current user ID available');
+        return [];
+      }
+
+      // Get profile views where the current user's profile was viewed
+      QuerySnapshot viewsSnapshot = await _profileViewsCollection
+          .where('viewedUserId', isEqualTo: currentUserId)
+          .orderBy('timestamp', descending: true)
+          .limit(50)  // Limit to the most recent 50 visitors
+          .get();
+
+      // Create a list to store visitors with their metadata
+      List<Map<String, dynamic>> visitors = [];
+
+      // Process each profile view
+      for (var doc in viewsSnapshot.docs) {
+        try {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          String viewerId = data['viewerId'] as String;
+          DateTime timestamp = (data['timestamp'] as Timestamp).toDate();
+
+          // Get the visitor's user data
+          User? user = await getUserData(viewerId);
+          if (user != null) {
+            visitors.add({
+              'user': user,
+              'timestamp': timestamp,
+            });
+          }
+        } catch (e) {
+          print('Error processing profile view: $e');
+        }
+      }
+
+      return visitors;
+    } catch (e) {
+      print('Error getting profile visitors: $e');
+      return [];
+    }
+  }
+
+  // Record a swipe decision with enhanced SuperLike support
   Future<bool> recordSwipe(String swipedUserId, bool isLike, {bool isSuperLike = false}) async {
     try {
       if (currentUserId == null) return false;
@@ -270,7 +351,7 @@ class FirestoreService {
 
       if (!isLike) return false;
 
-      print('${isLike ? "Like" : "Dislike"} recorded from $currentUserId to $swipedUserId');
+      print('${isLike ? (isSuperLike ? "SuperLike" : "Like") : "Dislike"} recorded from $currentUserId to $swipedUserId');
 
       // If it was a dislike, we don't need to check for a match
       if (!isLike) return false;
@@ -303,20 +384,6 @@ class FirestoreService {
           'superLike': isSuperLike,
         });
 
-        // Send match notification
-        DocumentSnapshot currentUserDoc =
-        await _usersCollection.doc(currentUserId).get();
-        Map<String, dynamic>? currentUserData =
-        currentUserDoc.data() as Map<String, dynamic>?;
-        String currentUserName = currentUserData?['name'] ?? 'Someone';
-
-        await _notificationManager.sendMatchNotification(
-            swipedUserId,
-            currentUserName
-        );
-
-
-
         print('Match created between $currentUserId and $swipedUserId');
         return true; // Match created
       }
@@ -328,7 +395,6 @@ class FirestoreService {
       return false;
     }
   }
-
 
   // Get user matches
   Future<List<Match>> getUserMatches() async {
@@ -407,24 +473,29 @@ class FirestoreService {
     }
   }
 
-  // Send a message
+  // Send a message - improved implementation
   Future<bool> sendMessage(String receiverId, String text) async {
     try {
       if (currentUserId == null) return false;
 
-      await _messagesCollection.add({
+      print('Sending message from $currentUserId to $receiverId: "$text"');
+
+      // Create the message document
+      DocumentReference messageRef = await _messagesCollection.add({
         'senderId': currentUserId,
         'receiverId': receiverId,
         'text': text,
         'timestamp': Timestamp.now(),
         'isRead': false,
+        'isDelivered': true, // Mark as delivered when sent
+        'type': 'text', // Default to text message
       });
 
-      // Get sender's name
-      DocumentSnapshot senderDoc =
-      await _usersCollection.doc(currentUserId).get();
-      Map<String, dynamic>? senderData =
-      senderDoc.data() as Map<String, dynamic>?;
+      print('Message sent with ID: ${messageRef.id}');
+
+      // Get sender's name for the notification
+      DocumentSnapshot senderDoc = await _usersCollection.doc(currentUserId).get();
+      Map<String, dynamic>? senderData = senderDoc.data() as Map<String, dynamic>?;
       String senderName = senderData?['name'] ?? 'Someone';
 
       // Send message notification
@@ -458,6 +529,7 @@ class FirestoreService {
       }
 
       await batch.commit();
+      print('Marked ${unreadMessages.docs.length} messages as read');
     } catch (e) {
       print('Error marking messages as read: $e');
     }
@@ -506,5 +578,135 @@ class FirestoreService {
           .map((doc) => Match.fromFirestore(doc))
           .toList();
     });
+  }
+
+  // Listen to profile visitors stream
+  Stream<List<Map<String, dynamic>>> profileVisitorsStream() {
+    if (currentUserId == null) {
+      return Stream.value([]);
+    }
+
+    return _profileViewsCollection
+        .where('viewedUserId', isEqualTo: currentUserId)
+        .orderBy('timestamp', descending: true)
+        .limit(50)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      List<Map<String, dynamic>> visitors = [];
+
+      for (var doc in snapshot.docs) {
+        try {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          String viewerId = data['viewerId'] as String;
+          DateTime timestamp = (data['timestamp'] as Timestamp).toDate();
+
+          // Get the visitor's user data
+          User? user = await getUserData(viewerId);
+          if (user != null) {
+            visitors.add({
+              'user': user,
+              'timestamp': timestamp,
+            });
+          }
+        } catch (e) {
+          print('Error processing profile view in stream: $e');
+        }
+      }
+
+      return visitors;
+    });
+  }
+
+  // Listen to users who liked me stream
+  Stream<List<User>> usersWhoLikedMeStream() {
+    if (currentUserId == null) {
+      return Stream.value([]);
+    }
+
+    return _swipesCollection
+        .where('swipedId', isEqualTo: currentUserId)
+        .where('liked', isEqualTo: true)
+        .snapshots()
+        .asyncMap((snapshot) async {
+      Set<String> likerIds = {};
+
+      // Extract user IDs and filter out matched users
+      for (var doc in snapshot.docs) {
+        try {
+          String swiperId = (doc.data() as Map<String, dynamic>)['swiperId'] as String;
+
+          if (!await isMatched(swiperId)) {
+            likerIds.add(swiperId);
+          }
+        } catch (e) {
+          print('Error in users who liked me stream: $e');
+        }
+      }
+
+      // Get user details for each liker
+      List<User> likers = [];
+      for (String userId in likerIds) {
+        User? user = await getUserData(userId);
+        if (user != null) {
+          likers.add(user);
+        }
+      }
+
+      return likers;
+    });
+  }
+
+  // Get all users (for debugging)
+  Future<List<User>> getAllUsers() async {
+    try {
+      print('GETTING ALL USERS FOR DEBUGGING');
+
+      List<User> allUsers = [];
+      QuerySnapshot usersSnapshot = await _usersCollection.get();
+
+      print('Total users in database: ${usersSnapshot.docs.length}');
+
+      for (var doc in usersSnapshot.docs) {
+        try {
+          User user = User.fromFirestore(doc);
+          allUsers.add(user);
+          print('Found user: ${user.name} (ID: ${user.id})');
+        } catch (e) {
+          print('Error parsing user data: $e');
+        }
+      }
+
+      return allUsers;
+    } catch (e) {
+      print('Error getting all users: $e');
+      return [];
+    }
+  }
+
+  // Send match notification
+  Future<void> sendMatchNotification(String recipientId, String senderName) async {
+    try {
+      await _notificationManager.sendMatchNotification(recipientId, senderName);
+    } catch (e) {
+      print('Error sending match notification: $e');
+    }
+  }
+
+  // Send SuperLike notification
+  Future<void> sendSuperLikeNotification(String recipientId, String senderName) async {
+    try {
+      await _notificationManager.sendSuperLikeNotification(recipientId, senderName);
+    } catch (e) {
+      print('Error sending SuperLike notification: $e');
+    }
+  }
+
+  // Send SuperLike match notification
+  Future<void> sendSuperLikeMatchNotification(String recipientId, String senderName) async {
+    try {
+      await _notificationManager.sendSuperLikeMatchNotification(recipientId, senderName);
+    } catch (e) {
+      print('Error sending SuperLike match notification: $e');
+    }
   }
 }

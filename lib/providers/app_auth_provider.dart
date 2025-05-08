@@ -1,3 +1,4 @@
+// lib/providers/app_auth_provider.dart - Updated Version
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -5,6 +6,8 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:google_sign_in/google_sign_in.dart';
 import 'package:flutter_facebook_auth/flutter_facebook_auth.dart';
+import 'package:http/http.dart' as http;
+import 'dart:convert';
 import '../services/firestore_service.dart';
 import '../services/notifications_service.dart';
 
@@ -38,7 +41,6 @@ class AppAuthProvider with ChangeNotifier {
     });
   }
 
-  // Google Sign In - SIMPLIFIED VERSION for fixing the token issue
   // Google Sign In - FIXED VERSION
   Future<bool> signInWithGoogle() async {
     try {
@@ -101,67 +103,7 @@ class AppAuthProvider with ChangeNotifier {
       return false;
     }
   }
-// Add this to your app_auth_provider.dart or any utility class
 
-  Future<Map<String, dynamic>> debugGoogleSignIn() async {
-    final Map<String, dynamic> debugInfo = {};
-
-    try {
-      debugInfo['starting'] = 'Attempting to initialize GoogleSignIn';
-      final GoogleSignIn googleSignIn = GoogleSignIn();
-
-      // Check if GoogleSignIn is configured
-      debugInfo['initialized'] = 'GoogleSignIn initialized';
-
-      // Check current sign in state
-      final isSignedIn = await googleSignIn.isSignedIn();
-      debugInfo['isSignedIn'] = isSignedIn;
-
-      if (isSignedIn) {
-        // Try to get current user
-        final account = await googleSignIn.signInSilently();
-        debugInfo['currentUser'] = account?.email ?? 'No user';
-
-        // Try to get authentication
-        if (account != null) {
-          try {
-            debugInfo['getting_auth'] = 'Attempting to get authentication tokens';
-            final auth = await account.authentication;
-            debugInfo['auth_success'] = 'Got authentication tokens';
-            debugInfo['has_id_token'] = auth.idToken != null;
-            debugInfo['has_access_token'] = auth.accessToken != null;
-          } catch (e) {
-            debugInfo['auth_error'] = e.toString();
-          }
-        }
-      } else {
-        // Try a fresh sign in
-        debugInfo['attempting_signin'] = 'User not signed in, trying fresh sign in';
-        try {
-          final account = await googleSignIn.signIn();
-          debugInfo['signin_result'] = account?.email ?? 'Sign in cancelled';
-
-          if (account != null) {
-            try {
-              debugInfo['getting_fresh_auth'] = 'Getting tokens for fresh sign in';
-              final auth = await account.authentication;
-              debugInfo['fresh_auth_success'] = 'Got fresh authentication tokens';
-              debugInfo['fresh_has_id_token'] = auth.idToken != null;
-              debugInfo['fresh_has_access_token'] = auth.accessToken != null;
-            } catch (e) {
-              debugInfo['fresh_auth_error'] = e.toString();
-            }
-          }
-        } catch (e) {
-          debugInfo['signin_error'] = e.toString();
-        }
-      }
-    } catch (e) {
-      debugInfo['error'] = e.toString();
-    }
-
-    return debugInfo;
-  }
   // Facebook Sign In - Properly implemented
   Future<bool> signInWithFacebook() async {
     try {
@@ -245,90 +187,182 @@ class AppAuthProvider with ChangeNotifier {
       notifyListeners();
       return false;
     }
-  }  // Apple Sign In - Properly implemented (placeholder for now)
+  }
 
-
-
+  // Apple Sign In - Properly implemented (placeholder for now)
   Future<bool> signInWithApple() async {
     try {
       // TODO: Implement Apple Sign In with sign_in_with_apple package
       // You'll need to add the package to pubspec.yaml and configure it
       print('Apple sign in initiated');
-      await Future.delayed(const Duration(seconds: 1));
-      return true;
+      _errorMessage = "Apple Sign In is not yet fully implemented";
+      notifyListeners();
+      return false;
     } catch (e) {
       print('Apple sign in error: $e');
       _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }
 
-  // Phone Auth - Properly implemented
-  Future<String?> sendOtp(String phoneNumber) async {
+  // Phone Auth - Enhanced to support WhatsApp OTP
+  Future<String?> sendOtp(String phoneNumber, {bool useWhatsApp = false}) async {
     try {
-      Completer<String?> completer = Completer<String?>();
+      _errorMessage = null;
+      notifyListeners();
 
-      await FirebaseAuth.instance.verifyPhoneNumber(
-        phoneNumber: phoneNumber,
-        timeout: const Duration(seconds: 60),
-        verificationCompleted: (PhoneAuthCredential credential) async {
-          // Auto-verification on some devices (Android)
-          final userCredential = await _auth.signInWithCredential(credential);
-          _user = userCredential.user;
-          notifyListeners();
-        },
-        verificationFailed: (FirebaseAuthException e) {
-          print('Phone verification failed: ${e.message}');
-          completer.complete(null);
-        },
-        codeSent: (String verificationId, int? resendToken) {
-          completer.complete(verificationId);
-        },
-        codeAutoRetrievalTimeout: (String verificationId) {
-          // Auto-timeout
-        },
-      );
+      // Log the phone verification attempt
+      print('Sending OTP to $phoneNumber via ${useWhatsApp ? "WhatsApp" : "SMS"}');
 
-      return completer.future;
+      if (useWhatsApp) {
+        // Note: This is a simulated WhatsApp OTP implementation
+        // In a real app, you would need to use an actual WhatsApp Business API service
+        // or a third-party provider like Twilio that supports WhatsApp
+
+        // Simulate WhatsApp OTP for demonstration purposes
+        // In reality, you would call your backend or a 3rd party API here
+        final simulatedOtp = '123456';
+        print('Simulated WhatsApp OTP: $simulatedOtp');
+
+        // Return a dummy verification ID
+        // In a real implementation, you would still use Firebase Auth or a similar verification system
+        return 'whatsapp-verification-${DateTime.now().millisecondsSinceEpoch}';
+      } else {
+        // Regular Firebase Phone Auth
+        Completer<String?> completer = Completer<String?>();
+
+        await FirebaseAuth.instance.verifyPhoneNumber(
+          phoneNumber: phoneNumber,
+          timeout: const Duration(seconds: 60),
+          verificationCompleted: (PhoneAuthCredential credential) async {
+            // Auto-verification on some devices (Android)
+            try {
+              final userCredential = await _auth.signInWithCredential(credential);
+              _user = userCredential.user;
+
+              if (_user != null && !completer.isCompleted) {
+                completer.complete('auto-verified');
+              }
+              notifyListeners();
+            } catch (e) {
+              if (!completer.isCompleted) {
+                completer.complete(null);
+              }
+              _errorMessage = e.toString();
+              notifyListeners();
+            }
+          },
+          verificationFailed: (FirebaseAuthException e) {
+            print('Phone verification failed: ${e.message}');
+            _errorMessage = e.message;
+            notifyListeners();
+            if (!completer.isCompleted) {
+              completer.complete(null);
+            }
+          },
+          codeSent: (String verificationId, int? resendToken) {
+            print('SMS code sent to $phoneNumber, verification ID: $verificationId');
+            if (!completer.isCompleted) {
+              completer.complete(verificationId);
+            }
+          },
+          codeAutoRetrievalTimeout: (String verificationId) {
+            // Auto-timeout
+            print('Phone verification auto-retrieval timeout');
+            if (!completer.isCompleted) {
+              completer.complete(verificationId);
+            }
+          },
+        );
+
+        return completer.future;
+      }
     } catch (e) {
       print('Send OTP error: $e');
       _errorMessage = e.toString();
+      notifyListeners();
       return null;
     }
   }
 
   Future<bool> verifyOtp(String verificationId, String otp) async {
     try {
-      PhoneAuthCredential credential = PhoneAuthProvider.credential(
-        verificationId: verificationId,
-        smsCode: otp,
-      );
+      _errorMessage = null;
+      notifyListeners();
 
-      UserCredential userCredential = await _auth.signInWithCredential(credential);
-      _user = userCredential.user;
+      print('Verifying OTP: verification ID=$verificationId, OTP=$otp');
 
-      if (_user != null) {
-        // Create user profile in Firestore if it doesn't exist
-        await _firestoreService.createNewUser(
-            _user!.uid,
-            _user!.displayName ?? 'Anonymous',
-            _user!.phoneNumber ?? ''
+      // Check if it's a simulated WhatsApp verification
+      if (verificationId.startsWith('whatsapp-verification-')) {
+        // For our simulated WhatsApp implementation, accept any 6-digit code
+        // In a real app, you would verify this with your backend or 3rd party service
+        if (otp.length == 6 && RegExp(r'^\d{6}$').hasMatch(otp)) {
+          print('Simulated WhatsApp OTP verification successful');
+
+          // Create a random anonymous user account in Firebase
+          final userCredential = await _auth.signInAnonymously();
+          _user = userCredential.user;
+
+          if (_user != null) {
+            // Update the user profile in Firestore
+            await _firestoreService.createNewUser(
+                _user!.uid,
+                'WhatsApp User',
+                ''
+            );
+
+            // Save FCM token
+            await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+            // Save to SharedPreferences
+            final prefs = await SharedPreferences.getInstance();
+            await prefs.setString('userId', _user!.uid);
+
+            notifyListeners();
+            return true;
+          }
+          return false;
+        } else {
+          print('Invalid OTP format for WhatsApp verification');
+          _errorMessage = 'Invalid verification code';
+          notifyListeners();
+          return false;
+        }
+      } else {
+        // Regular Firebase OTP verification
+        PhoneAuthCredential credential = PhoneAuthProvider.credential(
+          verificationId: verificationId,
+          smsCode: otp,
         );
 
-        // Save token to Firestore
-        await _notificationsService.saveTokenToDatabase(_user!.uid);
+        UserCredential userCredential = await _auth.signInWithCredential(credential);
+        _user = userCredential.user;
 
-        // Save to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', _user!.uid);
+        if (_user != null) {
+          // Create user profile in Firestore if it doesn't exist
+          await _firestoreService.createNewUser(
+              _user!.uid,
+              _user!.displayName ?? 'Phone User',
+              _user!.phoneNumber ?? ''
+          );
 
-        return true;
+          // Save token to Firestore
+          await _notificationsService.saveTokenToDatabase(_user!.uid);
+
+          // Save to SharedPreferences
+          final prefs = await SharedPreferences.getInstance();
+          await prefs.setString('userId', _user!.uid);
+
+          notifyListeners();
+          return true;
+        }
+        return false;
       }
-
-      return false;
     } catch (e) {
       print('Verify OTP error: $e');
       _errorMessage = e.toString();
+      notifyListeners();
       return false;
     }
   }
@@ -358,18 +392,21 @@ class AppAuthProvider with ChangeNotifier {
         print('User logged in successfully: ${_user!.uid}');
       }
 
+      _isLoading = false;
+      notifyListeners();
       return _user != null;
     } on FirebaseAuthException catch (e) {
       _errorMessage = _getReadableAuthError(e);
       print('Firebase Auth Error: ${e.code} - ${e.message}');
+      _isLoading = false;
+      notifyListeners();
       return false;
     } catch (e) {
       _errorMessage = e.toString();
       print('Login error: $e');
-      return false;
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
@@ -404,16 +441,25 @@ class AppAuthProvider with ChangeNotifier {
         await prefs.setString('userId', _user!.uid);
 
         print('Registration completed successfully');
+        _isLoading = false;
+        notifyListeners();
         return true;
       }
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _getReadableAuthError(e);
+      print('Firebase Auth Error: ${e.code} - ${e.message}');
+      _isLoading = false;
+      notifyListeners();
       return false;
     } catch (e) {
       print('Registration error: $e');
       _errorMessage = e.toString();
-      return false;
-    } finally {
       _isLoading = false;
       notifyListeners();
+      return false;
     }
   }
 
@@ -437,6 +483,7 @@ class AppAuthProvider with ChangeNotifier {
     } catch (e) {
       _errorMessage = e.toString();
       print('Logout error: $e');
+      notifyListeners();
     }
   }
 
@@ -459,6 +506,12 @@ class AppAuthProvider with ChangeNotifier {
         return 'Operation not allowed. Please contact support.';
       case 'too-many-requests':
         return 'Too many login attempts. Please try again later.';
+      case 'invalid-verification-code':
+        return 'Invalid verification code. Please check and try again.';
+      case 'invalid-verification-id':
+        return 'Invalid verification ID. Please request a new code.';
+      case 'account-exists-with-different-credential':
+        return 'An account already exists with the same email but different sign-in credentials.';
       default:
         return e.message ?? 'An error occurred during authentication.';
     }

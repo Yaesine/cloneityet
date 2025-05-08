@@ -3,10 +3,13 @@ import 'package:firebase_auth/firebase_auth.dart';
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:flutter/material.dart';
 import 'package:new_tinder_clone/screens/TinderStyleProfileScreen.dart';
+import 'package:new_tinder_clone/screens/email_login_screen.dart';
+import 'package:new_tinder_clone/screens/likes_screen.dart';
 import 'package:new_tinder_clone/screens/splash_screen.dart';
 import 'package:provider/provider.dart';
 import 'package:firebase_core/firebase_core.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+
 // Providers
 import 'providers/message_provider.dart';
 import 'providers/user_provider.dart';
@@ -140,6 +143,7 @@ class MyApp extends StatelessWidget {
             '/boost': (context) => BoostScreen(),
             '/premium': (context) => PremiumScreen(),
             '/modernProfile': (context) => TinderStyleProfileScreen(), // Add this new route
+            '/email-login': (context) => const EmailLoginScreen(),
             '/achievements': (context) => AchievementsScreen(
               unlockedBadges: [],
               availableBadges: [],
@@ -158,6 +162,7 @@ class MyApp extends StatelessWidget {
 }
 
 // Main Screen with Bottom Navigation
+// Main Screen with Bottom Navigation
 class MainScreen extends StatefulWidget {
   const MainScreen({Key? key}) : super(key: key);
 
@@ -169,6 +174,7 @@ class _MainScreenState extends State<MainScreen> {
   int _currentIndex = 0;
   final List<Widget> _screens = [
     const EnhancedHomeScreen(),
+    const LikesScreen(),  // Add the new LikesScreen here
     const MatchesScreen(),
     const TinderStyleProfileScreen(),
   ];
@@ -198,7 +204,14 @@ class _MainScreenState extends State<MainScreen> {
 
       await userProvider.loadPotentialMatches();
       await userProvider.loadMatches();
+
+      // Load the new likes and visitors data
+      await userProvider.loadUsersWhoLikedMe();
+      await userProvider.loadProfileVisitors();
+
+      // Start all streams
       userProvider.startMatchesStream();
+      userProvider.startVisitorsAndLikesStreams();
     });
   }
 
@@ -226,9 +239,80 @@ class _MainScreenState extends State<MainScreen> {
             onPressed: () => Navigator.pop(context),
             child: const Text('OK'),
           ),
+          if (message.data['type'] != null)
+            TextButton(
+              onPressed: () {
+                Navigator.pop(context);
+                _handleNotificationAction(message);
+              },
+              child: const Text('View', style: TextStyle(color: Colors.blue)),
+            ),
         ],
       ),
     );
+  }
+
+  void _handleNotificationAction(RemoteMessage message) {
+    final type = message.data['type'];
+
+    // Navigate based on notification type
+    switch (type) {
+      case 'match':
+        setState(() {
+          _currentIndex = 2; // Switch to Matches tab
+        });
+        _pageController.animateToPage(
+          2,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 'super_like':
+      case 'profile_view':
+        setState(() {
+          _currentIndex = 1; // Switch to Likes tab
+        });
+        _pageController.animateToPage(
+          1,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+        break;
+      case 'message':
+      // Navigate to the chat screen if a specific user is referenced
+        if (message.data['senderId'] != null) {
+          final userProvider = Provider.of<UserProvider>(context, listen: false);
+
+          // Find the matched user by ID
+          for (final user in userProvider.matchedUsers) {
+            if (user.id == message.data['senderId']) {
+              Navigator.of(context).pushNamed('/chat', arguments: user);
+              return;
+            }
+          }
+        } else {
+          // Otherwise just go to matches tab
+          setState(() {
+            _currentIndex = 2; // Switch to Matches tab
+          });
+          _pageController.animateToPage(
+            2,
+            duration: const Duration(milliseconds: 300),
+            curve: Curves.easeInOut,
+          );
+        }
+        break;
+      default:
+      // Default to the home tab
+        setState(() {
+          _currentIndex = 0;
+        });
+        _pageController.animateToPage(
+          0,
+          duration: const Duration(milliseconds: 300),
+          curve: Curves.easeInOut,
+        );
+    }
   }
 
   Future<void> _saveTokenToFirestore(String token) async {
@@ -293,6 +377,10 @@ class _MainScreenState extends State<MainScreen> {
             BottomNavigationBarItem(
               icon: Icon(Icons.whatshot),
               label: 'Discover',
+            ),
+            BottomNavigationBarItem(
+              icon: Icon(Icons.favorite),
+              label: 'Likes',
             ),
             BottomNavigationBarItem(
               icon: Icon(Icons.chat),

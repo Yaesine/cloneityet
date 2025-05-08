@@ -1,6 +1,10 @@
+// lib/screens/phone_login_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
+import 'package:country_code_picker/country_code_picker.dart';
 import '../providers/app_auth_provider.dart';
+import '../theme/app_theme.dart';
+import '../widgets/components/app_button.dart';
 
 class PhoneLoginScreen extends StatefulWidget {
   const PhoneLoginScreen({Key? key}) : super(key: key);
@@ -16,6 +20,8 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   bool _isLoading = false;
   bool _isOtpSent = false;
   String? _verificationId;
+  String _selectedCountryCode = '+971'; // Default to UAE
+  bool _useWhatsApp = false;
 
   @override
   void dispose() {
@@ -32,26 +38,52 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
     });
 
     try {
-      // TODO: Implement Firebase phone auth
-      // final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      // _verificationId = await authProvider.sendOtp(_phoneController.text);
+      // Format phone number with country code
+      final phoneNumber = '$_selectedCountryCode${_phoneController.text.trim()}';
 
-      // Simulate OTP sending
-      await Future.delayed(const Duration(seconds: 2));
+      // Get auth provider
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
 
-      setState(() {
-        _isOtpSent = true;
-      });
+      // Send OTP via SMS or WhatsApp
+      _verificationId = await authProvider.sendOtp(
+          phoneNumber,
+          useWhatsApp: _useWhatsApp
+      );
 
-      if (mounted) {
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(content: Text('OTP sent to your phone number')),
-        );
+      if (_verificationId != null) {
+        setState(() {
+          _isOtpSent = true;
+        });
+
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(
+                  _useWhatsApp
+                      ? 'OTP sent to your WhatsApp'
+                      : 'OTP sent to your phone number'
+              ),
+              backgroundColor: Colors.green,
+            ),
+          );
+        }
+      } else {
+        if (mounted) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Failed to send OTP. Please try again.'),
+              backgroundColor: Colors.red,
+            ),
+          );
+        }
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -62,27 +94,33 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
   }
 
   Future<void> _verifyOtp() async {
-    if (!_formKey.currentState!.validate()) return;
+    if (!_formKey.currentState!.validate() || _verificationId == null) return;
 
     setState(() {
       _isLoading = true;
     });
 
     try {
-      // TODO: Implement Firebase OTP verification
-      // final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      // bool success = await authProvider.verifyOtp(_verificationId!, _otpController.text);
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      bool success = await authProvider.verifyOtp(_verificationId!, _otpController.text.trim());
 
-      // Simulate OTP verification
-      await Future.delayed(const Duration(seconds: 2));
-
-      if (mounted) {
+      if (success && mounted) {
         Navigator.of(context).pushReplacementNamed('/main');
+      } else if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Invalid OTP. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
       }
     } catch (e) {
       if (mounted) {
         ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(content: Text('Error: ${e.toString()}')),
+          SnackBar(
+            content: Text('Error: ${e.toString()}'),
+            backgroundColor: Colors.red,
+          ),
         );
       }
     } finally {
@@ -111,7 +149,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
           child: Column(
             crossAxisAlignment: CrossAxisAlignment.start,
             children: [
-              const SizedBox(height: 32),
+              const SizedBox(height: 16),
 
               // Title
               Text(
@@ -119,6 +157,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 style: const TextStyle(
                   fontSize: 32,
                   fontWeight: FontWeight.bold,
+                  color: AppColors.primary,
                 ),
               ),
 
@@ -127,11 +166,11 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
               // Subtitle
               Text(
                 _isOtpSent
-                    ? 'Enter the code sent to ${_phoneController.text}'
-                    : 'Please enter your valid phone number. We will send you a 4-digit code to verify your account.',
-                style: const TextStyle(
+                    ? 'Enter the code sent to $_selectedCountryCode ${_phoneController.text}'
+                    : 'Please enter your valid phone number. We will send you a code to verify your account.',
+                style: TextStyle(
                   fontSize: 14,
-                  color: Colors.grey,
+                  color: Colors.grey[600],
                 ),
               ),
 
@@ -139,36 +178,117 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
 
               // Input field
               if (!_isOtpSent)
-                TextFormField(
-                  controller: _phoneController,
-                  keyboardType: TextInputType.phone,
-                  decoration: const InputDecoration(
-                    prefixIcon: Icon(Icons.phone, color: Colors.grey),
-                    labelText: 'Phone Number',
-                    border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    // Country code selector
+                    Container(
+                      decoration: BoxDecoration(
+                        border: Border.all(color: Colors.grey),
+                        borderRadius: BorderRadius.circular(12),
+                      ),
+                      child: CountryCodePicker(
+                        onChanged: (CountryCode countryCode) {
+                          setState(() {
+                            _selectedCountryCode = countryCode.dialCode ?? '+1';
+                          });
+                        },
+                        initialSelection: 'AE',
+                        favorite: const ['AE', 'US', 'GB', 'IN', 'SA'],
+                        showCountryOnly: false,
+                        showOnlyCountryWhenClosed: false,
+                        alignLeft: true,
+                        padding: EdgeInsets.zero,
+                        builder: (code) {
+                          return Row(
+                            mainAxisSize: MainAxisSize.min,
+                            children: [
+                              const SizedBox(width: 8),
+                              Container(
+                                width: 30,
+                                height: 30,
+                                child: code?.flagImage ?? Container(),
+                              ),
+                              const SizedBox(width: 8),
+                              Text(
+                                code?.dialCode ?? '+1',
+                                style: const TextStyle(
+                                  fontSize: 16,
+                                  fontWeight: FontWeight.bold,
+                                ),
+                              ),
+                              const SizedBox(width: 8),
+                              const Icon(Icons.arrow_drop_down),
+                              const SizedBox(width: 8),
+                            ],
+                          );
+                        },
+                      ),
                     ),
-                    prefixText: '+1 ',
-                  ),
-                  validator: (value) {
-                    if (value == null || value.isEmpty) {
-                      return 'Please enter your phone number';
-                    }
-                    if (value.length < 10) {
-                      return 'Please enter a valid phone number';
-                    }
-                    return null;
-                  },
+
+                    const SizedBox(height: 16),
+
+                    // Phone number input
+                    TextFormField(
+                      controller: _phoneController,
+                      keyboardType: TextInputType.phone,
+                      decoration: InputDecoration(
+                        prefixIcon: const Icon(Icons.phone, color: AppColors.primary),
+                        labelText: 'Phone Number',
+                        hintText: 'Enter your phone number without country code',
+                        border: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                        ),
+                        focusedBorder: OutlineInputBorder(
+                          borderRadius: BorderRadius.circular(12),
+                          borderSide: const BorderSide(color: AppColors.primary, width: 2),
+                        ),
+                      ),
+                      validator: (value) {
+                        if (value == null || value.isEmpty) {
+                          return 'Please enter your phone number';
+                        }
+                        if (value.length < 6) {
+                          return 'Please enter a valid phone number';
+                        }
+                        return null;
+                      },
+                    ),
+
+                    // WhatsApp option
+                    Row(
+                      children: [
+                        Checkbox(
+                          value: _useWhatsApp,
+                          activeColor: AppColors.primary,
+                          onChanged: (value) {
+                            setState(() {
+                              _useWhatsApp = value ?? false;
+                            });
+                          },
+                        ),
+                        const Text(
+                          'Send code via WhatsApp instead of SMS',
+                          style: TextStyle(fontSize: 14),
+                        ),
+                      ],
+                    ),
+                  ],
                 )
               else
                 TextFormField(
                   controller: _otpController,
                   keyboardType: TextInputType.number,
-                  maxLength: 4,
-                  decoration: const InputDecoration(
-                    labelText: 'Enter OTP',
+                  maxLength: 6,
+                  decoration: InputDecoration(
+                    labelText: 'Enter 6-digit OTP',
+                    prefixIcon: const Icon(Icons.lock_outline, color: AppColors.primary),
                     border: OutlineInputBorder(
-                      borderRadius: BorderRadius.all(Radius.circular(12)),
+                      borderRadius: BorderRadius.circular(12),
+                    ),
+                    focusedBorder: OutlineInputBorder(
+                      borderRadius: BorderRadius.circular(12),
+                      borderSide: const BorderSide(color: AppColors.primary, width: 2),
                     ),
                     counterText: '',
                   ),
@@ -176,57 +296,66 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     if (value == null || value.isEmpty) {
                       return 'Please enter the OTP';
                     }
-                    if (value.length != 4) {
-                      return 'Please enter a valid 4-digit OTP';
+                    if (value.length != 6) {
+                      return 'Please enter a valid 6-digit OTP';
                     }
                     return null;
                   },
                 ),
 
-              const SizedBox(height: 24),
+              const SizedBox(height: 32),
 
-              // CTA Button
-              SizedBox(
-                width: double.infinity,
-                height: 50,
-                child: ElevatedButton(
-                  onPressed: _isLoading
-                      ? null
-                      : _isOtpSent
-                      ? _verifyOtp
-                      : _sendOtp,
-                  style: ElevatedButton.styleFrom(
-                    backgroundColor: Colors.red,
-                    shape: RoundedRectangleBorder(
-                      borderRadius: BorderRadius.circular(25),
-                    ),
-                    disabledBackgroundColor: Colors.red.withOpacity(0.5),
-                  ),
-                  child: _isLoading
-                      ? const CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(Colors.white),
-                  )
-                      : Text(
-                    _isOtpSent ? 'VERIFY' : 'CONTINUE',
-                    style: const TextStyle(
-                      fontSize: 16,
-                      fontWeight: FontWeight.bold,
-                      color: Colors.white,
-                    ),
-                  ),
-                ),
+              // Action button
+              AppButton(
+                text: _isOtpSent ? 'VERIFY' : 'CONTINUE',
+                onPressed: _isOtpSent ? _verifyOtp : _sendOtp,
+                isLoading: _isLoading,
+                isFullWidth: true,
+                size: AppButtonSize.large,
+                type: AppButtonType.primary,
+                icon: _isOtpSent ? Icons.verified_user : Icons.send,
               ),
 
               if (_isOtpSent) ...[
-                const SizedBox(height: 16),
+                const SizedBox(height: 24),
+                Center(
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Text(
+                        "Didn't receive code? ",
+                        style: TextStyle(color: Colors.grey[600]),
+                      ),
+                      TextButton(
+                        onPressed: _isLoading ? null : _sendOtp,
+                        child: const Text(
+                          'Resend OTP',
+                          style: TextStyle(
+                            color: AppColors.primary,
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+
+                // Change phone number option
                 Center(
                   child: TextButton(
-                    onPressed: _isLoading ? null : _sendOtp,
+                    onPressed: _isLoading
+                        ? null
+                        : () {
+                      setState(() {
+                        _isOtpSent = false;
+                        _verificationId = null;
+                        _otpController.clear();
+                      });
+                    },
                     child: const Text(
-                      'Resend OTP',
+                      'Change Phone Number',
                       style: TextStyle(
-                        color: Colors.red,
-                        fontWeight: FontWeight.bold,
+                        color: AppColors.primary,
                       ),
                     ),
                   ),

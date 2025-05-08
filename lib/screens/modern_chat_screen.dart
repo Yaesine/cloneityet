@@ -1,3 +1,4 @@
+// lib/screens/modern_chat_screen.dart - Fixed version
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
@@ -17,9 +18,11 @@ class ModernChatScreen extends StatefulWidget {
 
 class _ModernChatScreenState extends State<ModernChatScreen> {
   final TextEditingController _messageController = TextEditingController();
+  final ScrollController _scrollController = ScrollController();
   User? _matchedUser;
   bool _isLoading = true;
   bool _isSending = false;
+  bool _isTyping = false;
 
   @override
   void initState() {
@@ -33,6 +36,9 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
   @override
   void dispose() {
     _messageController.dispose();
+    _scrollController.dispose();
+    final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+    messageProvider.stopMessagesStream();
     super.dispose();
   }
 
@@ -75,6 +81,23 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
         setState(() {
           _isLoading = false;
         });
+
+        // Show typing indicator randomly sometimes
+        Future.delayed(const Duration(seconds: 2), () {
+          if (mounted && messageProvider.messages.isEmpty) {
+            setState(() {
+              _isTyping = true;
+            });
+
+            Future.delayed(const Duration(seconds: 3), () {
+              if (mounted) {
+                setState(() {
+                  _isTyping = false;
+                });
+              }
+            });
+          }
+        });
       }
     } catch (e) {
       print('Error loading messages: $e');
@@ -93,52 +116,77 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
   }
 
   Future<void> _sendMessage() async {
-    if (_messageController.text.trim().isEmpty || _matchedUser == null) {
+    // Validation: Don't send empty messages
+    final messageText = _messageController.text.trim();
+    if (messageText.isEmpty || _matchedUser == null) {
       return;
     }
 
-    print("Attempting to send message: ${_messageController.text}");
+    // Clear text field first for better UX
+    _messageController.clear();
 
+    // Set sending state
     setState(() {
       _isSending = true;
     });
 
-    final messageText = _messageController.text.trim();
-    _messageController.clear();
-
-    // Send the message
     try {
+      print("Sending message: $messageText to ${_matchedUser!.id}");
+
       final messageProvider = Provider.of<MessageProvider>(context, listen: false);
       bool success = await messageProvider.sendMessage(_matchedUser!.id, messageText);
 
       print("Message send result: $success");
 
-      if (mounted) {
-        setState(() {
-          _isSending = false;
+      if (!success && mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          const SnackBar(
+            content: Text('Failed to send message. Please try again.'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      } else {
+        // Scroll to bottom after sending
+        Future.delayed(const Duration(milliseconds: 100), () {
+          if (_scrollController.hasClients) {
+            _scrollController.animateTo(
+              0,
+              duration: const Duration(milliseconds: 300),
+              curve: Curves.easeOut,
+            );
+          }
         });
 
-        if (!success) {
-          ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Failed to send message. Please try again.'),
-                backgroundColor: Colors.red,
-              )
-          );
+        // Show typing indicator after you send a message
+        if (mounted) {
+          setState(() {
+            _isTyping = true;
+          });
+
+          Future.delayed(const Duration(seconds: 2), () {
+            if (mounted) {
+              setState(() {
+                _isTyping = false;
+              });
+            }
+          });
         }
       }
     } catch (e) {
       print("Error sending message: $e");
       if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text('Error: $e'),
+            backgroundColor: Colors.red,
+          ),
+        );
+      }
+    } finally {
+      if (mounted) {
         setState(() {
           _isSending = false;
         });
-        ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text('Error: $e'),
-              backgroundColor: Colors.red,
-            )
-        );
       }
     }
   }
@@ -169,12 +217,23 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
                 }
 
                 return ListView.builder(
+                  controller: _scrollController,
                   padding: const EdgeInsets.all(16),
                   reverse: true,
-                  itemCount: messages.length,
+                  itemCount: messages.length + (_isTyping ? 1 : 0),
                   itemBuilder: (context, index) {
-                    final message = messages[index];
-                    final isMe = message.senderId == Provider.of<AppAuthProvider>(context, listen: false).currentUserId;
+                    // Add typing indicator at the top when typing
+                    if (_isTyping && index == 0) {
+                      return _buildTypingIndicator();
+                    }
+
+                    // Adjust index for messages when typing indicator is present
+                    final messageIndex = _isTyping ? index - 1 : index;
+                    if (messageIndex < 0) return const SizedBox.shrink();
+
+                    final message = messages[messageIndex];
+                    final isMe = message.senderId ==
+                        Provider.of<AppAuthProvider>(context, listen: false).currentUserId;
 
                     return _buildMessageBubble(message, isMe);
                   },
@@ -229,6 +288,58 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
           ),
         ],
       ),
+    );
+  }
+
+  Widget _buildTypingIndicator() {
+    return Padding(
+      padding: const EdgeInsets.symmetric(vertical: 8),
+      child: Row(
+        children: [
+          CircleAvatar(
+            radius: 16,
+            backgroundImage: NetworkImage(_matchedUser!.imageUrls.isNotEmpty
+                ? _matchedUser!.imageUrls[0]
+                : 'https://i.pravatar.cc/300?img=33'),
+          ),
+          const SizedBox(width: 8),
+          Container(
+            padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 12),
+            decoration: BoxDecoration(
+              color: Colors.grey.shade200,
+              borderRadius: BorderRadius.circular(20),
+            ),
+            child: Row(
+              children: [
+                _buildDot(300),
+                const SizedBox(width: 4),
+                _buildDot(600),
+                const SizedBox(width: 4),
+                _buildDot(900),
+              ],
+            ),
+          ),
+        ],
+      ),
+    );
+  }
+
+  Widget _buildDot(int milliseconds) {
+    return TweenAnimationBuilder(
+      tween: Tween<double>(begin: 0, end: 1),
+      duration: Duration(milliseconds: milliseconds),
+      builder: (context, double value, child) {
+        return Opacity(
+          opacity: value,
+          child: const Text(
+            '•',
+            style: TextStyle(
+              color: Colors.grey,
+              fontSize: 24,
+            ),
+          ),
+        );
+      },
     );
   }
 
@@ -296,28 +407,29 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
           Expanded(
             child: TextField(
               controller: _messageController,
-              decoration: const InputDecoration(
+              decoration: InputDecoration(
                 hintText: 'Type a message...',
                 border: OutlineInputBorder(
-                  borderRadius: BorderRadius.all(Radius.circular(20)),
+                  borderRadius: BorderRadius.circular(20),
                 ),
-                contentPadding: EdgeInsets.symmetric(horizontal: 16, vertical: 8),
+                contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
               ),
               textCapitalization: TextCapitalization.sentences,
               onSubmitted: (_) => _sendMessage(),
             ),
           ),
           const SizedBox(width: 8),
-          ElevatedButton(
+          MaterialButton(
             onPressed: _isSending ? null : _sendMessage,
-            style: ElevatedButton.styleFrom(
-              shape: const CircleBorder(),
-              padding: const EdgeInsets.all(12),
-            ),
+            color: Theme.of(context).primaryColor,
+            textColor: Colors.white,
+            shape: const CircleBorder(),
+            padding: const EdgeInsets.all(16),
+            minWidth: 0,
             child: _isSending
                 ? const SizedBox(
-              width: 24,
-              height: 24,
+              width: 20,
+              height: 20,
               child: CircularProgressIndicator(
                 strokeWidth: 2,
                 valueColor: AlwaysStoppedAnimation<Color>(Colors.white),

@@ -1,3 +1,4 @@
+// lib/models/match_model.dart - Updated to support SuperLike
 import 'package:cloud_firestore/cloud_firestore.dart';
 
 class Match {
@@ -5,12 +6,14 @@ class Match {
   final String userId;
   final String matchedUserId;
   final DateTime timestamp;
+  final bool superLike; // New field to track if this match was from a SuperLike
 
   Match({
     required this.id,
     required this.userId,
     required this.matchedUserId,
     required this.timestamp,
+    this.superLike = false, // Default to false for normal matches
   });
 
   factory Match.fromJson(Map<String, dynamic> json) {
@@ -21,6 +24,7 @@ class Match {
       timestamp: (json['timestamp'] is Timestamp)
           ? (json['timestamp'] as Timestamp).toDate()
           : DateTime.parse(json['timestamp']),
+      superLike: json['superLike'] ?? false,
     );
   }
 
@@ -33,6 +37,7 @@ class Match {
       timestamp: (data['timestamp'] is Timestamp)
           ? (data['timestamp'] as Timestamp).toDate()
           : DateTime.now(),
+      superLike: data['superLike'] ?? false,
     );
   }
 
@@ -42,6 +47,7 @@ class Match {
       'userId': userId,
       'matchedUserId': matchedUserId,
       'timestamp': timestamp.toIso8601String(),
+      'superLike': superLike,
     };
   }
 
@@ -50,6 +56,7 @@ class Match {
       'userId': userId,
       'matchedUserId': matchedUserId,
       'timestamp': Timestamp.fromDate(timestamp),
+      'superLike': superLike,
     };
   }
 }
