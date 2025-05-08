@@ -27,6 +27,9 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
     super.dispose();
   }
 
+// lib/screens/email_login_screen.dart
+// Ensure the _handleSubmit method is properly implemented:
+
   Future<void> _handleSubmit() async {
     if (!_formKey.currentState!.validate()) return;
 
@@ -82,7 +85,6 @@ class _EmailLoginScreenState extends State<EmailLoginScreen> {
       }
     }
   }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(

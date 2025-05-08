@@ -182,6 +182,9 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   crossAxisAlignment: CrossAxisAlignment.start,
                   children: [
                     // Country code selector
+                    // In lib/screens/phone_login_screen.dart
+// Find and replace the CountryCodePicker builder with this version
+
                     Container(
                       decoration: BoxDecoration(
                         border: Border.all(color: Colors.grey),
@@ -207,7 +210,14 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                               Container(
                                 width: 30,
                                 height: 30,
-                                child: code?.flagImage ?? Container(),
+                                child: (code != null && code.flagUri != null)
+                                    ? Image.asset(
+                                  code.flagUri!,
+                                  package: 'country_code_picker',
+                                  width: 30,
+                                  height: 30,
+                                )
+                                    : Container(),
                               ),
                               const SizedBox(width: 8),
                               Text(

@@ -1,6 +1,13 @@
-// notifications_service.dart
+// lib/services/notifications_service.dart
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
+import 'package:flutter/material.dart';
+
+@pragma('vm:entry-point')
+Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
+  // No need to initialize Firebase as it's done in main.dart
+  print('Handling a background message: ${message.messageId}');
+}
 
 class NotificationsService {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
@@ -15,7 +22,7 @@ class NotificationsService {
 
     print('User granted permission: ${settings.authorizationStatus}');
 
-    // Handle background messages
+    // Set up background message handler
     FirebaseMessaging.onBackgroundMessage(_firebaseMessagingBackgroundHandler);
 
     // Handle foreground messages
@@ -25,14 +32,15 @@ class NotificationsService {
 
       if (message.notification != null) {
         print('Message also contained a notification: ${message.notification}');
+        // Use in-app dialog instead of local notification
+        _showInAppDialog(message);
       }
     });
 
     // Handle when app is opened from a notification
     FirebaseMessaging.onMessageOpenedApp.listen((RemoteMessage message) {
       print('A new onMessageOpenedApp event was published!');
-      // Navigate to appropriate screen based on notification type
-      _handleNotificationTap(message);
+      // We'll handle navigation in NotificationManager
     });
 
     // Get the token each time the application loads
@@ -40,10 +48,10 @@ class NotificationsService {
     print('FCM Token: $token');
   }
 
-  void _handleNotificationTap(RemoteMessage message) {
-    final notificationType = message.data['type'];
-    // Handle navigation based on notification type
-    // This can be implemented later when you set up navigation
+  void _showInAppDialog(RemoteMessage message) {
+    // The context isn't available here.
+    // This functionality is handled in NotificationManager instead
+    print('Would show in-app dialog for: ${message.notification?.title}');
   }
 
   Future<void> subscribeToTopic(String topic) async {
@@ -68,13 +76,4 @@ class NotificationsService {
           .update({'fcmToken': token});
     }
   }
-}
-
-// This function needs to be top-level and can't be part of a class
-@pragma('vm:entry-point')
-Future<void> _firebaseMessagingBackgroundHandler(RemoteMessage message) async {
-  // Initialize Firebase if needed
-  // await Firebase.initializeApp();
-
-  print('Handling a background message: ${message.messageId}');
 }

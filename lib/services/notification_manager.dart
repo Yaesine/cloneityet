@@ -1,9 +1,8 @@
-// lib/services/notification_manager.dart - Enhanced version
+// lib/services/notification_manager.dart
 import 'package:firebase_messaging/firebase_messaging.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:flutter/material.dart';
-import 'package:flutter_local_notifications/flutter_local_notifications.dart';
 import '../utils/navigation.dart';
 
 class NotificationManager {
@@ -14,14 +13,9 @@ class NotificationManager {
   final FirebaseMessaging _firebaseMessaging = FirebaseMessaging.instance;
   final FirebaseFirestore _firestore = FirebaseFirestore.instance;
 
-  // Add FlutterLocalNotificationsPlugin for in-app notifications
-  final FlutterLocalNotificationsPlugin _flutterLocalNotificationsPlugin =
-  FlutterLocalNotificationsPlugin();
-
   // Initialize notifications
   Future<void> initialize() async {
     await _requestPermission();
-    await _initializeLocalNotifications();
     await _configureFirebaseMessaging();
     await _saveTokenToFirestore();
   }
@@ -39,29 +33,6 @@ class NotificationManager {
     );
 
     print('User granted permission: ${settings.authorizationStatus}');
-  }
-
-  // Initialize local notifications
-  Future<void> _initializeLocalNotifications() async {
-    // Initialize local notifications
-    const initializationSettingsAndroid = AndroidInitializationSettings('@mipmap/ic_launcher');
-    const initializationSettingsIOS = DarwinInitializationSettings(
-      requestAlertPermission: true,
-      requestBadgePermission: true,
-      requestSoundPermission: true,
-    );
-    const initializationSettings = InitializationSettings(
-      android: initializationSettingsAndroid,
-      iOS: initializationSettingsIOS,
-    );
-
-    await _flutterLocalNotificationsPlugin.initialize(
-      initializationSettings,
-      onDidReceiveNotificationResponse: (NotificationResponse response) {
-        print('Local notification clicked: ${response.payload}');
-        _handleNotificationTap(response.payload);
-      },
-    );
   }
 
   // Configure Firebase messaging
@@ -85,40 +56,8 @@ class NotificationManager {
 
     if (message.notification != null) {
       print('Message also contained a notification: ${message.notification}');
-      _showLocalNotification(
-        message.notification?.title ?? 'New Notification',
-        message.notification?.body ?? '',
-        message.data.toString(),
-      );
+      _showInAppNotification(message);
     }
-  }
-
-  // Show local notification
-  Future<void> _showLocalNotification(String title, String body, String payload) async {
-    const androidDetails = AndroidNotificationDetails(
-      'still_app_channel',
-      'Still App Notifications',
-      importance: Importance.high,
-      priority: Priority.high,
-      showWhen: true,
-    );
-    const iOSDetails = DarwinNotificationDetails(
-      presentAlert: true,
-      presentBadge: true,
-      presentSound: true,
-    );
-    const notificationDetails = NotificationDetails(
-      android: androidDetails,
-      iOS: iOSDetails,
-    );
-
-    await _flutterLocalNotificationsPlugin.show(
-      DateTime.now().millisecond,
-      title,
-      body,
-      notificationDetails,
-      payload: payload,
-    );
   }
 
   // Show in-app notification
@@ -156,28 +95,6 @@ class NotificationManager {
     final id = message.data['id'];
 
     _navigateBasedOnType(type, id);
-  }
-
-  // Handle notification tap from local notification
-  void _handleNotificationTap(String? payload) {
-    if (payload == null) return;
-
-    try {
-      // Parse the payload to extract type and id
-      final Map<String, dynamic> data = Map<String, dynamic>.from(
-          payload.replaceAll('{', '').replaceAll('}', '')
-              .split(', ')
-              .map((e) => MapEntry(e.split(': ')[0], e.split(': ')[1]))
-              .toMap()
-      );
-
-      final type = data['type'];
-      final id = data['id'];
-
-      _navigateBasedOnType(type, id);
-    } catch (e) {
-      print('Error parsing notification payload: $e');
-    }
   }
 
   // Navigate based on notification type

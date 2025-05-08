@@ -341,7 +341,8 @@ class _ModernLoginScreenState extends State<ModernLoginScreen> with SingleTicker
                           delay: const Duration(milliseconds: 1900),
                           child: TextButton(
                             onPressed: () {
-                              // Handle manual email sign in if needed
+                              // Navigate to the email login screen
+                              Navigator.of(context).pushNamed('/email-login');
                             },
                             child: Text(
                               'Sign in with Email',

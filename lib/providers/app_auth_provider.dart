@@ -410,6 +410,7 @@ class AppAuthProvider with ChangeNotifier {
     }
   }
 
+
   // Register new user
   Future<bool> register(String name, String email, String password) async {
     try {
@@ -433,7 +434,7 @@ class AppAuthProvider with ChangeNotifier {
         // Update display name in Firebase Auth
         await _user!.updateDisplayName(name);
 
-        // Create user profile in Firestore using a more direct approach
+        // Create user profile in Firestore
         await _firestoreService.createNewUser(_user!.uid, name, email);
 
         // Save to SharedPreferences
