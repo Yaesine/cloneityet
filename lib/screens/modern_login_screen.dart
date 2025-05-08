@@ -4,6 +4,7 @@ import 'package:provider/provider.dart';
 import 'dart:ui';
 import 'dart:io';
 import '../providers/app_auth_provider.dart';
+import '../services/facebook_service.dart';
 import '../theme/app_theme.dart';
 import '../widgets/components/app_button.dart';
 import '../animations/animations.dart';
@@ -51,6 +52,44 @@ class _ModernLoginScreenState extends State<ModernLoginScreen> with SingleTicker
     super.dispose();
   }
 
+
+
+  Future<void> _handleFacebookSignIn() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      print('Starting Facebook login process...');
+
+      // Initialize Facebook SDK first
+      await FacebookService.initialize();
+      print('Facebook SDK initialized');
+
+      // Proceed with login
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      bool success = await authProvider.signInWithFacebook();
+
+      if (success && mounted) {
+        Navigator.of(context).pushReplacementNamed('/main');
+      } else if (!success && mounted) {
+        _showErrorDialog('Facebook sign in failed. Please try again.');
+      }
+    } catch (error) {
+      print('Facebook sign in error: $error');
+      if (mounted) {
+        _showErrorDialog('Failed to sign in with Facebook: ${error.toString()}');
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
+        });
+      }
+    }
+  }
+
+
   Future<void> _handleGoogleSignIn() async {
     setState(() {
       _isLoading = true;
@@ -87,30 +126,7 @@ class _ModernLoginScreenState extends State<ModernLoginScreen> with SingleTicker
     }
   }
 
-  Future<void> _handleFacebookSignIn() async {
-    setState(() {
-      _isLoading = true;
-    });
 
-    try {
-      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      bool success = await authProvider.signInWithFacebook();
-
-      if (success && mounted) {
-        Navigator.of(context).pushReplacementNamed('/main');
-      } else {
-        _showErrorDialog('Facebook sign in failed. Please try again.');
-      }
-    } catch (error) {
-      _showErrorDialog('Failed to sign in with Facebook: ${error.toString()}');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
-  }
 
   Future<void> _handlePhoneSignIn() async {
     if (mounted) {

@@ -17,8 +17,7 @@
     </queries>
 
     <application
-        android:label="new_tinder_clone"
-        android:name=".TinderCloneApplication"
+        android:label="Still"
         android:icon="@mipmap/ic_launcher"
         android:hardwareAccelerated="true"
         android:largeHeap="true"

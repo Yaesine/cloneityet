@@ -1,7 +1,8 @@
+// lib/screens/splash_screen.dart - UPDATED VERSION
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/app_auth_provider.dart';
-import 'dart:async';
 
 class SplashScreen extends StatefulWidget {
   const SplashScreen({Key? key}) : super(key: key);
@@ -14,8 +15,7 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
   late AnimationController _animationController;
   late Animation<double> _scaleAnimation;
   late Animation<double> _opacityAnimation;
-  bool _resourcesInitialized = false;
-  bool _animationCompleted = false;
+  bool _animationStarted = false;
 
   @override
   void initState() {
@@ -24,10 +24,10 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
     // Initialize animation controller and animations
     _animationController = AnimationController(
       vsync: this,
-      duration: const Duration(milliseconds: 1200),
+      duration: const Duration(milliseconds: 800), // Reduced from 1200ms
     );
 
-    _scaleAnimation = Tween<double>(begin: 0.5, end: 1.0).animate(
+    _scaleAnimation = Tween<double>(begin: 0.8, end: 1.0).animate(
       CurvedAnimation(parent: _animationController, curve: Curves.easeOutBack),
     );
 
@@ -35,16 +35,33 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       CurvedAnimation(parent: _animationController, curve: Curves.easeIn),
     );
 
-    // Begin animation
-    _animationController.forward();
+    // Begin animation as soon as widget is built
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      if (mounted && !_animationStarted) {
+        setState(() {
+          _animationStarted = true;
+        });
+        _animationController.forward();
 
-    // Setup simplified navigation
-    Future.delayed(Duration(milliseconds: 1500), () {
-      _navigateToNextScreen();
+        // Set reasonable navigation timeout
+        Future.delayed(Duration(milliseconds: 1500), () {
+          _navigateToNextScreen();
+        });
+      }
     });
 
-    // Initialize resources in background
-    _loadResourcesInBackground();
+    // Start auth initialization in background without blocking
+    _initializeAuth();
+  }
+
+  Future<void> _initializeAuth() async {
+    try {
+      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
+      // Non-blocking auth initialization
+      authProvider.initializeAuth();
+    } catch (e) {
+      print('Background auth initialization error: $e');
+    }
   }
 
   void _navigateToNextScreen() {
@@ -55,18 +72,6 @@ class _SplashScreenState extends State<SplashScreen> with SingleTickerProviderSt
       Navigator.pushReplacementNamed(context, '/main');
     } else {
       Navigator.pushReplacementNamed(context, '/login');
-    }
-  }
-
-  Future<void> _loadResourcesInBackground() async {
-    try {
-      // Initialize auth in background
-      final authProvider = Provider.of<AppAuthProvider>(context, listen: false);
-      authProvider.initializeAuth();
-
-      // Make sure not to load any location or geocoding services here
-    } catch (e) {
-      debugPrint('Background resource loading error: $e');
     }
   }
 

@@ -45,29 +45,20 @@ import 'utils/navigation.dart';
 import 'widgets/notification_handler.dart';
 
 void main() async {
-  developer.Timeline.startSync('App Start');
-
-  // Measure Flutter initialization
-  developer.Timeline.startSync('Flutter Init');
   WidgetsFlutterBinding.ensureInitialized();
-  developer.Timeline.finishSync();
-
-  // Measure Firebase initialization
-  developer.Timeline.startSync('Firebase Init');
   await Firebase.initializeApp();
-  developer.Timeline.finishSync();
-
-  // Start the app UI immediately
-  developer.Timeline.startSync('Run App');
-  runApp(const MyApp());
-  developer.Timeline.finishSync();
-
-  // Background work after app starts
-  _completeInitialization();
-
-  developer.Timeline.finishSync(); // App Start
+  runApp(MyApp());
 }
 
+Future<void> _initializeAppInBackground() async {
+  try {
+    // Initialize Firebase after UI is shown
+    await Firebase.initializeApp();
+    print('Firebase initialized successfully in background');
+  } catch (e) {
+    print('Error initializing Firebase: $e');
+  }
+}
 Future<void> _completeInitialization() async {
   try {
     // Lower priority initialization that can happen after UI is shown
