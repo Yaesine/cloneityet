@@ -1,4 +1,4 @@
-// lib/providers/app_auth_provider.dart - Updated Version
+// lib/providers/app_auth_provider.dart - Temporary bypass solution
 import 'dart:async';
 
 import 'package:flutter/material.dart';
@@ -20,9 +20,9 @@ class AppAuthProvider with ChangeNotifier {
   bool _isLoading = true;
 
   // Getters
-  User? get user => _user;
-  bool get isLoggedIn => _user != null;
-  String get currentUserId => _user?.uid ?? '';
+  User? get user => _auth.currentUser;
+  bool get isLoggedIn => _auth.currentUser != null;
+  String get currentUserId => _auth.currentUser?.uid ?? '';
   bool get isLoading => _isLoading;
   String? get errorMessage => _errorMessage;
 
@@ -41,18 +41,141 @@ class AppAuthProvider with ChangeNotifier {
     });
   }
 
-  // Google Sign In - FIXED VERSION
+  // Login with email and password
+  Future<bool> login(String email, String password) async {
+    try {
+      _errorMessage = null;
+      _isLoading = true;
+      notifyListeners();
+
+      print('Attempting login with email: $email');
+
+      UserCredential result = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final user = result.user;
+
+      if (user != null) {
+        await _notificationsService.saveTokenToDatabase(user.uid);
+        final prefs = await SharedPreferences.getInstance();
+        await prefs.setString('userId', user.uid);
+        print('User logged in successfully: ${user.uid}');
+      }
+
+      _isLoading = false;
+      notifyListeners();
+      return user != null;
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _getReadableAuthError(e);
+      print('Firebase Auth Error: ${e.code} - ${e.message}');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      _errorMessage = e.toString();
+      print('Login error: $e');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // TOTAL BYPASS: Register new user without touching problematic APIs
+  Future<bool> register(String name, String email, String password) async {
+    try {
+      _errorMessage = null;
+      _isLoading = true;
+      notifyListeners();
+
+      print('Starting emergency registration for $email...');
+
+      // STEP 1: Create Firebase Auth account WITHOUT ANY PROFILE UPDATES
+      final tempResult = await _auth.createUserWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final tempUser = tempResult.user;
+      if (tempUser == null) {
+        print('Failed to create Firebase Auth account');
+        _errorMessage = 'Failed to create user account';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      final userId = tempUser.uid;
+      print('Firebase Auth account created with ID: $userId');
+
+      // STEP 2: Immediately sign out to prevent triggering the PigeonUserDetails error
+      // This is a radical approach but should work around the plugin issue
+      await _auth.signOut();
+      print('Temporary signout to avoid PigeonUserDetails error');
+
+      // STEP 3: Create the Firestore profile with the user's name
+      await _firestoreService.createNewUser(userId, name, email);
+      print('Firestore profile created for user: $name ($email)');
+
+      // STEP 4: Sign back in with the created credentials
+      final signInResult = await _auth.signInWithEmailAndPassword(
+        email: email,
+        password: password,
+      );
+
+      final signedInUser = signInResult.user;
+      if (signedInUser == null) {
+        print('Failed to sign back in after profile creation');
+        _errorMessage = 'Account created but login failed. Please try logging in manually.';
+        _isLoading = false;
+        notifyListeners();
+        return false;
+      }
+
+      print('Successfully signed back in as: $userId');
+
+      // STEP 5: Save FCM token and other necessary information
+      try {
+        await _notificationsService.saveTokenToDatabase(userId);
+        print('FCM token saved');
+      } catch (e) {
+        print('Non-critical error saving FCM token: $e');
+        // Continue anyway
+      }
+
+      // STEP 6: Save to SharedPreferences
+      final prefs = await SharedPreferences.getInstance();
+      await prefs.setString('userId', userId);
+
+      print('Registration completed successfully with bypass method');
+      _isLoading = false;
+      notifyListeners();
+      return true;
+
+    } on FirebaseAuthException catch (e) {
+      _errorMessage = _getReadableAuthError(e);
+      print('Firebase Auth Error: ${e.code} - ${e.message}');
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    } catch (e) {
+      print('Registration error: $e');
+      _errorMessage = e.toString();
+      _isLoading = false;
+      notifyListeners();
+      return false;
+    }
+  }
+
+  // Google Sign In
   Future<bool> signInWithGoogle() async {
     try {
-      print('Starting simple Google Sign In...');
+      print('Starting Google Sign In...');
 
-      // Create a standard GoogleSignIn instance
       final GoogleSignIn googleSignIn = GoogleSignIn();
-
-      // Clear any existing sign-in
       await googleSignIn.signOut();
 
-      // Start the sign-in flow
       final GoogleSignInAccount? googleUser = await googleSignIn.signIn();
       if (googleUser == null) {
         print('User cancelled Google Sign In');
@@ -61,35 +184,29 @@ class AppAuthProvider with ChangeNotifier {
 
       print('Google Sign In succeeded for user: ${googleUser.email}');
 
-      // Get the auth tokens
       final GoogleSignInAuthentication googleAuth = await googleUser.authentication;
 
-      // Create Firebase credential
       final credential = GoogleAuthProvider.credential(
         accessToken: googleAuth.accessToken,
         idToken: googleAuth.idToken,
       );
 
-      // Sign in to Firebase
       final userCredential = await _auth.signInWithCredential(credential);
-      _user = userCredential.user;
+      final user = userCredential.user;
 
-      if (_user != null) {
-        print('Firebase authentication successful: ${_user!.uid}');
+      if (user != null) {
+        print('Firebase authentication successful: ${user.uid}');
 
-        // Create Firestore profile if needed
         await _firestoreService.createNewUser(
-            _user!.uid,
-            _user!.displayName ?? 'New User',
-            _user!.email ?? ''
+            user.uid,
+            user.displayName ?? 'New User',
+            user.email ?? ''
         );
 
-        // Save FCM token
-        await _notificationsService.saveTokenToDatabase(_user!.uid);
+        await _notificationsService.saveTokenToDatabase(user.uid);
 
-        // Save user ID to SharedPreferences
         final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', _user!.uid);
+        await prefs.setString('userId', user.uid);
 
         notifyListeners();
         return true;
@@ -104,26 +221,23 @@ class AppAuthProvider with ChangeNotifier {
     }
   }
 
-  // Facebook Sign In - Properly implemented
+  // Facebook Sign In
   Future<bool> signInWithFacebook() async {
     try {
       print('Starting Facebook login process...');
 
-      // Clear any existing login state
       await FacebookAuth.instance.logOut();
       print('Previous Facebook sessions cleared');
 
-      // Use a more flexible login behavior instead of webOnly
       final LoginResult loginResult = await FacebookAuth.instance.login(
         permissions: ['email', 'public_profile'],
-        loginBehavior: LoginBehavior.nativeWithFallback, // This tries native app first, then falls back to dialog/web
+        loginBehavior: LoginBehavior.nativeWithFallback,
       );
 
       print('Facebook login status: ${loginResult.status}');
       print('Facebook login message: ${loginResult.message}');
 
       if (loginResult.status == LoginStatus.success) {
-        // Get user data for better profile creation
         final userData = await FacebookAuth.instance.getUserData();
         print('Facebook user data retrieved: ${userData['name']}');
 
@@ -136,30 +250,25 @@ class AppAuthProvider with ChangeNotifier {
 
         print('Access token received, length: ${loginResult.accessToken!.token.length}');
 
-        // Create Firebase credential
         final OAuthCredential facebookAuthCredential =
         FacebookAuthProvider.credential(loginResult.accessToken!.token);
 
-        // Sign in to Firebase
         final userCredential = await _auth.signInWithCredential(facebookAuthCredential);
-        _user = userCredential.user;
+        final user = userCredential.user;
 
-        if (_user != null) {
-          print('Firebase authenticated user: ${_user!.uid}');
+        if (user != null) {
+          print('Firebase authenticated user: ${user.uid}');
 
-          // Create user profile in Firestore
           await _firestoreService.createNewUser(
-              _user!.uid,
-              _user!.displayName ?? userData['name'] ?? 'New User',
-              _user!.email ?? userData['email'] ?? ''
+              user.uid,
+              user.displayName ?? userData['name'] ?? 'New User',
+              user.email ?? userData['email'] ?? ''
           );
 
-          // Save token to Firestore
-          await _notificationsService.saveTokenToDatabase(_user!.uid);
+          await _notificationsService.saveTokenToDatabase(user.uid);
 
-          // Save to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userId', _user!.uid);
+          await prefs.setString('userId', user.uid);
 
           notifyListeners();
           return true;
@@ -189,11 +298,9 @@ class AppAuthProvider with ChangeNotifier {
     }
   }
 
-  // Apple Sign In - Properly implemented (placeholder for now)
+  // Apple Sign In (placeholder)
   Future<bool> signInWithApple() async {
     try {
-      // TODO: Implement Apple Sign In with sign_in_with_apple package
-      // You'll need to add the package to pubspec.yaml and configure it
       print('Apple sign in initiated');
       _errorMessage = "Apple Sign In is not yet fully implemented";
       notifyListeners();
@@ -206,42 +313,30 @@ class AppAuthProvider with ChangeNotifier {
     }
   }
 
-  // Phone Auth - Enhanced to support WhatsApp OTP
+  // Phone Auth
   Future<String?> sendOtp(String phoneNumber, {bool useWhatsApp = false}) async {
     try {
       _errorMessage = null;
       notifyListeners();
 
-      // Log the phone verification attempt
       print('Sending OTP to $phoneNumber via ${useWhatsApp ? "WhatsApp" : "SMS"}');
 
       if (useWhatsApp) {
-        // Note: This is a simulated WhatsApp OTP implementation
-        // In a real app, you would need to use an actual WhatsApp Business API service
-        // or a third-party provider like Twilio that supports WhatsApp
-
-        // Simulate WhatsApp OTP for demonstration purposes
-        // In reality, you would call your backend or a 3rd party API here
         final simulatedOtp = '123456';
         print('Simulated WhatsApp OTP: $simulatedOtp');
-
-        // Return a dummy verification ID
-        // In a real implementation, you would still use Firebase Auth or a similar verification system
         return 'whatsapp-verification-${DateTime.now().millisecondsSinceEpoch}';
       } else {
-        // Regular Firebase Phone Auth
         Completer<String?> completer = Completer<String?>();
 
         await FirebaseAuth.instance.verifyPhoneNumber(
           phoneNumber: phoneNumber,
           timeout: const Duration(seconds: 60),
           verificationCompleted: (PhoneAuthCredential credential) async {
-            // Auto-verification on some devices (Android)
             try {
               final userCredential = await _auth.signInWithCredential(credential);
-              _user = userCredential.user;
+              final user = userCredential.user;
 
-              if (_user != null && !completer.isCompleted) {
+              if (user != null && !completer.isCompleted) {
                 completer.complete('auto-verified');
               }
               notifyListeners();
@@ -268,7 +363,6 @@ class AppAuthProvider with ChangeNotifier {
             }
           },
           codeAutoRetrievalTimeout: (String verificationId) {
-            // Auto-timeout
             print('Phone verification auto-retrieval timeout');
             if (!completer.isCompleted) {
               completer.complete(verificationId);
@@ -293,31 +387,24 @@ class AppAuthProvider with ChangeNotifier {
 
       print('Verifying OTP: verification ID=$verificationId, OTP=$otp');
 
-      // Check if it's a simulated WhatsApp verification
       if (verificationId.startsWith('whatsapp-verification-')) {
-        // For our simulated WhatsApp implementation, accept any 6-digit code
-        // In a real app, you would verify this with your backend or 3rd party service
         if (otp.length == 6 && RegExp(r'^\d{6}$').hasMatch(otp)) {
           print('Simulated WhatsApp OTP verification successful');
 
-          // Create a random anonymous user account in Firebase
           final userCredential = await _auth.signInAnonymously();
-          _user = userCredential.user;
+          final user = userCredential.user;
 
-          if (_user != null) {
-            // Update the user profile in Firestore
+          if (user != null) {
             await _firestoreService.createNewUser(
-                _user!.uid,
+                user.uid,
                 'WhatsApp User',
                 ''
             );
 
-            // Save FCM token
-            await _notificationsService.saveTokenToDatabase(_user!.uid);
+            await _notificationsService.saveTokenToDatabase(user.uid);
 
-            // Save to SharedPreferences
             final prefs = await SharedPreferences.getInstance();
-            await prefs.setString('userId', _user!.uid);
+            await prefs.setString('userId', user.uid);
 
             notifyListeners();
             return true;
@@ -330,29 +417,25 @@ class AppAuthProvider with ChangeNotifier {
           return false;
         }
       } else {
-        // Regular Firebase OTP verification
         PhoneAuthCredential credential = PhoneAuthProvider.credential(
           verificationId: verificationId,
           smsCode: otp,
         );
 
         UserCredential userCredential = await _auth.signInWithCredential(credential);
-        _user = userCredential.user;
+        final user = userCredential.user;
 
-        if (_user != null) {
-          // Create user profile in Firestore if it doesn't exist
+        if (user != null) {
           await _firestoreService.createNewUser(
-              _user!.uid,
-              _user!.displayName ?? 'Phone User',
-              _user!.phoneNumber ?? ''
+              user.uid,
+              user.displayName ?? 'Phone User',
+              user.phoneNumber ?? ''
           );
 
-          // Save token to Firestore
-          await _notificationsService.saveTokenToDatabase(_user!.uid);
+          await _notificationsService.saveTokenToDatabase(user.uid);
 
-          // Save to SharedPreferences
           final prefs = await SharedPreferences.getInstance();
-          await prefs.setString('userId', _user!.uid);
+          await prefs.setString('userId', user.uid);
 
           notifyListeners();
           return true;
@@ -367,114 +450,15 @@ class AppAuthProvider with ChangeNotifier {
     }
   }
 
-  // Login with email and password
-  Future<bool> login(String email, String password) async {
-    try {
-      _errorMessage = null;
-      _isLoading = true;
-      notifyListeners();
-
-      print('Attempting login with email: $email');
-
-      // Sign in with Firebase Auth
-      UserCredential result = await _auth.signInWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      _user = result.user;
-
-      // Save to SharedPreferences for persistence
-      if (_user != null) {
-        await _notificationsService.saveTokenToDatabase(_user!.uid);
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', _user!.uid);
-        print('User logged in successfully: ${_user!.uid}');
-      }
-
-      _isLoading = false;
-      notifyListeners();
-      return _user != null;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _getReadableAuthError(e);
-      print('Firebase Auth Error: ${e.code} - ${e.message}');
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      _errorMessage = e.toString();
-      print('Login error: $e');
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
-
-  // Register new user
-  Future<bool> register(String name, String email, String password) async {
-    try {
-      _errorMessage = null;
-      _isLoading = true;
-      notifyListeners();
-
-      print('Starting registration for $email...');
-
-      // Create user with Firebase Auth
-      UserCredential result = await _auth.createUserWithEmailAndPassword(
-        email: email,
-        password: password,
-      );
-
-      _user = result.user;
-
-      if (_user != null) {
-        print('Firebase Auth user created: ${_user!.uid}');
-
-        // Update display name in Firebase Auth
-        await _user!.updateDisplayName(name);
-
-        // Create user profile in Firestore
-        await _firestoreService.createNewUser(_user!.uid, name, email);
-
-        // Save to SharedPreferences
-        final prefs = await SharedPreferences.getInstance();
-        await prefs.setString('userId', _user!.uid);
-
-        print('Registration completed successfully');
-        _isLoading = false;
-        notifyListeners();
-        return true;
-      }
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } on FirebaseAuthException catch (e) {
-      _errorMessage = _getReadableAuthError(e);
-      print('Firebase Auth Error: ${e.code} - ${e.message}');
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    } catch (e) {
-      print('Registration error: $e');
-      _errorMessage = e.toString();
-      _isLoading = false;
-      notifyListeners();
-      return false;
-    }
-  }
-
   // Logout
   Future<void> logout() async {
     try {
       print('Attempting logout');
 
-      // Sign out from all providers
       await _auth.signOut();
       await GoogleSignIn().signOut();
       await FacebookAuth.instance.logOut();
 
-      // Clear SharedPreferences
       final prefs = await SharedPreferences.getInstance();
       await prefs.remove('userId');
 
@@ -526,11 +510,8 @@ class AppAuthProvider with ChangeNotifier {
     print('Checking if user is logged in from SharedPreferences: $userId');
 
     if (userId != null && userId.isNotEmpty) {
-      // Already logged in via SharedPreferences, but need to check Firebase Auth
-      if (_user == null) {
-        // User exists in SharedPreferences but not in Firebase Auth
-        // This can happen if the app was closed and reopened
-        // Clear SharedPreferences and return false
+      final currentUser = _auth.currentUser;
+      if (currentUser == null) {
         await prefs.remove('userId');
         print('User ID found in SharedPreferences but not in Firebase Auth, clearing preferences');
         return false;
