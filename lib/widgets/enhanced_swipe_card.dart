@@ -4,6 +4,7 @@ import 'dart:math';
 import '../models/user_model.dart';
 import '../services/profile_view_tracker.dart';
 import '../theme/app_theme.dart';
+import '../widgets/components/letter_avatar.dart'; // Import the new widget
 
 class EnhancedSwipeCard extends StatefulWidget {
   final User user;
@@ -110,7 +111,7 @@ class _EnhancedSwipeCardState extends State<EnhancedSwipeCard> with SingleTicker
                 child: Stack(
                   fit: StackFit.expand,
                   children: [
-                    // Profile Image
+                    // Profile Image or Letter Avatar
                     Hero(
                       tag: 'profile_image_${widget.user.id}',
                       child: AnimatedSwitcher(
@@ -118,17 +119,25 @@ class _EnhancedSwipeCardState extends State<EnhancedSwipeCard> with SingleTicker
                         transitionBuilder: (Widget child, Animation<double> animation) {
                           return FadeTransition(opacity: animation, child: child);
                         },
-                        child: Container(
+                        child: widget.user.imageUrls.isNotEmpty && _currentImageIndex < widget.user.imageUrls.length
+                            ? Container(
                           key: ValueKey<int>(_currentImageIndex),
                           decoration: BoxDecoration(
                             image: DecorationImage(
                               image: NetworkImage(
-                                widget.user.imageUrls.isNotEmpty && _currentImageIndex < widget.user.imageUrls.length
-                                    ? widget.user.imageUrls[_currentImageIndex]
-                                    : 'https://i.pravatar.cc/300?img=33',
+                                widget.user.imageUrls[_currentImageIndex],
                               ),
                               fit: BoxFit.cover,
                             ),
+                          ),
+                        )
+                            : Container(
+                          key: ValueKey<String>('letter-avatar-${widget.user.id}'),
+                          child: LetterAvatar(
+                            name: widget.user.name,
+                            size: MediaQuery.of(context).size.width,
+                            backgroundColor: AppColors.primary,
+                            showBorder: false,
                           ),
                         ),
                       ),

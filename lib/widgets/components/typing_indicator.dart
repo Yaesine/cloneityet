@@ -1,10 +1,16 @@
 // lib/widgets/components/typing_indicator.dart
 import 'package:flutter/material.dart';
+import 'letter_avatar.dart';
 
 class TypingIndicator extends StatefulWidget {
   final String userName;
+  final List<String>? imageUrls;
 
-  const TypingIndicator({Key? key, required this.userName}) : super(key: key);
+  const TypingIndicator({
+    Key? key,
+    required this.userName,
+    this.imageUrls,
+  }) : super(key: key);
 
   @override
   _TypingIndicatorState createState() => _TypingIndicatorState();
@@ -59,13 +65,11 @@ class _TypingIndicatorState extends State<TypingIndicator> with SingleTickerProv
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 12,
-            backgroundColor: Colors.grey[400],
-            child: Text(
-              widget.userName[0],
-              style: TextStyle(color: Colors.white, fontSize: 12),
-            ),
+          // Use our LetterAvatar widget instead of CircleAvatar
+          LetterAvatar(
+            name: widget.userName,
+            size: 24,
+            imageUrls: widget.imageUrls,
           ),
           const SizedBox(width: 8),
           Container(

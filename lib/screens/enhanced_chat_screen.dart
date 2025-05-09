@@ -10,6 +10,7 @@ import '../theme/app_theme.dart';
 import '../widgets/components/typing_indicator.dart';
 import '../widgets/components/profile_avatar.dart';
 import '../widgets/components/loading_indicator.dart';
+import '../widgets/components/letter_avatar.dart'; // Import the new widget
 
 class EnhancedChatScreen extends StatefulWidget {
   const EnhancedChatScreen({Key? key}) : super(key: key);
@@ -300,10 +301,10 @@ class _EnhancedChatScreenState extends State<EnhancedChatScreen> with SingleTick
   Widget _buildAppBarTitle() {
     return Row(
       children: [
+        // Use ProfileAvatar with the user's name
         ProfileAvatar(
-          imageUrl: _matchedUser!.imageUrls.isNotEmpty
-              ? _matchedUser!.imageUrls[0]
-              : 'https://i.pravatar.cc/300?img=33',
+          imageUrl: _matchedUser!.imageUrls.isNotEmpty ? _matchedUser!.imageUrls[0] : '',
+          userName: _matchedUser!.name,
           size: 40,
           status: ProfileAvatarStatus.online,
         ),
@@ -355,10 +356,10 @@ class _EnhancedChatScreenState extends State<EnhancedChatScreen> with SingleTick
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
           if (!isMe && _matchedUser != null) ...[
-            ProfileAvatar(
-              imageUrl: _matchedUser!.imageUrls.isNotEmpty
-                  ? _matchedUser!.imageUrls[0]
-                  : 'https://i.pravatar.cc/300?img=33',
+            // Use LetterAvatar directly for matched user
+            LetterAvatar(
+              name: _matchedUser!.name,
+              imageUrls: _matchedUser!.imageUrls,
               size: 32,
             ),
             const SizedBox(width: 8),
@@ -418,7 +419,16 @@ class _EnhancedChatScreenState extends State<EnhancedChatScreen> with SingleTick
             ),
           ),
 
-          if (isMe) const SizedBox(width: 8),
+          if (isMe) ...[
+            const SizedBox(width: 8),
+            // Use LetterAvatar for current user
+            // Get current user's name from a provider if available, or use "Me"
+            LetterAvatar(
+              name: "Me", // Ideally you would get current user's name from a provider
+              size: 32,
+              backgroundColor: AppColors.primary,
+            ),
+          ],
         ],
       ),
     );
@@ -515,32 +525,18 @@ class _EnhancedChatScreenState extends State<EnhancedChatScreen> with SingleTick
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
           const SizedBox(height: 60),
-          Container(
+          // Use LetterAvatar for the empty chat view
+          SizedBox(
             width: 120,
             height: 120,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: AppColors.primary.withOpacity(0.3),
-                width: 2,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: AppColors.primary.withOpacity(0.1),
-                  blurRadius: 16,
-                  spreadRadius: 2,
-                ),
-              ],
-            ),
-            child: _matchedUser != null ? ClipRRect(
-              borderRadius: BorderRadius.circular(60),
-              child: Image.network(
-                _matchedUser!.imageUrls.isNotEmpty
-                    ? _matchedUser!.imageUrls[0]
-                    : 'https://i.pravatar.cc/300?img=33',
-                fit: BoxFit.cover,
-              ),
-            ) : Container(),
+            child: _matchedUser != null
+                ? LetterAvatar(
+              name: _matchedUser!.name,
+              size: 120,
+              imageUrls: _matchedUser!.imageUrls,
+              showBorder: true,
+            )
+                : Container(),
           ),
           const SizedBox(height: 24),
           Text(

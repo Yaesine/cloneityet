@@ -1,12 +1,13 @@
 // lib/widgets/components/profile_avatar.dart
 import 'package:flutter/material.dart';
-import 'package:cached_network_image/cached_network_image.dart';
 import '../../theme/app_theme.dart';
+import 'letter_avatar.dart';
 
 enum ProfileAvatarStatus { online, offline, away, none }
 
 class ProfileAvatar extends StatelessWidget {
   final String imageUrl;
+  final String userName; // Added userName parameter
   final double size;
   final ProfileAvatarStatus status;
   final VoidCallback? onTap;
@@ -15,6 +16,7 @@ class ProfileAvatar extends StatelessWidget {
   const ProfileAvatar({
     Key? key,
     required this.imageUrl,
+    required this.userName, // Made userName a required parameter
     this.size = 60,
     this.status = ProfileAvatarStatus.none,
     this.onTap,
@@ -44,48 +46,12 @@ class ProfileAvatar extends StatelessWidget {
       onTap: onTap,
       child: Stack(
         children: [
-          // Profile image
-          Container(
-            width: size,
-            height: size,
-            decoration: BoxDecoration(
-              shape: BoxShape.circle,
-              border: Border.all(
-                color: Colors.white,
-                width: size / 30,
-              ),
-              boxShadow: [
-                BoxShadow(
-                  color: Colors.black.withOpacity(0.1),
-                  blurRadius: 8,
-                  spreadRadius: 1,
-                  offset: const Offset(0, 2),
-                ),
-              ],
-            ),
-            child: ClipRRect(
-              borderRadius: BorderRadius.circular(size / 2),
-              child: CachedNetworkImage(
-                imageUrl: imageUrl,
-                fit: BoxFit.cover,
-                placeholder: (context, url) => Container(
-                  color: Colors.grey[300],
-                  child: Icon(
-                    Icons.person,
-                    size: size / 2,
-                    color: Colors.grey[400],
-                  ),
-                ),
-                errorWidget: (context, url, error) => Container(
-                  color: Colors.grey[300],
-                  child: Icon(
-                    Icons.error,
-                    size: size / 3,
-                    color: Colors.grey[500],
-                  ),
-                ),
-              ),
-            ),
+          // Profile image or letter avatar
+          LetterAvatar(
+            name: userName,
+            size: size,
+            imageUrls: imageUrl.isNotEmpty ? [imageUrl] : null,
+            showBorder: true,
           ),
 
           // Status indicator

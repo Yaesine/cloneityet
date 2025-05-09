@@ -1,9 +1,10 @@
-// lib/screens/modern_chat_screen.dart - Fixed version
+// lib/screens/modern_chat_screen.dart
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../models/user_model.dart';
 import '../models/message_model.dart';
 import 'package:intl/intl.dart';
+import '../widgets/components/letter_avatar.dart';
 
 import '../providers/app_auth_provider.dart';
 import '../providers/message_provider.dart';
@@ -11,9 +12,6 @@ import '../theme/app_theme.dart';
 
 class ModernChatScreen extends StatefulWidget {
   const ModernChatScreen({Key? key}) : super(key: key);
-
-
-
 
   @override
   _ModernChatScreenState createState() => _ModernChatScreenState();
@@ -212,7 +210,18 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
     return Scaffold(
       appBar: AppBar(
         title: _matchedUser != null
-            ? Text("Chat with ${_matchedUser!.name}")
+            ? Row(
+          children: [
+            // Use LetterAvatar instead of CircleAvatar with a network image
+            LetterAvatar(
+              name: _matchedUser!.name,
+              size: 36,
+              imageUrls: _matchedUser!.imageUrls.isEmpty ? null : _matchedUser!.imageUrls,
+            ),
+            const SizedBox(width: 8),
+            Text("Chat with ${_matchedUser!.name}"),
+          ],
+        )
             : const Text("Chat"),
         leading: IconButton(
           icon: const Icon(Icons.arrow_back),
@@ -272,11 +281,15 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
       child: Column(
         mainAxisAlignment: MainAxisAlignment.center,
         children: [
-          CircleAvatar(
-            radius: 50,
-            backgroundImage: NetworkImage(_matchedUser!.imageUrls.isNotEmpty
-                ? _matchedUser!.imageUrls[0]
-                : 'https://i.pravatar.cc/300?img=33'),
+          // Use LetterAvatar instead of CircleAvatar
+          SizedBox(
+            width: 100,
+            height: 100,
+            child: LetterAvatar(
+              name: _matchedUser!.name,
+              size: 100,
+              imageUrls: _matchedUser!.imageUrls,
+            ),
           ),
           const SizedBox(height: 16),
           Text(
@@ -312,11 +325,11 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
       padding: const EdgeInsets.symmetric(vertical: 8),
       child: Row(
         children: [
-          CircleAvatar(
-            radius: 16,
-            backgroundImage: NetworkImage(_matchedUser!.imageUrls.isNotEmpty
-                ? _matchedUser!.imageUrls[0]
-                : 'https://i.pravatar.cc/300?img=33'),
+          // Use LetterAvatar for the typing indicator
+          LetterAvatar(
+            name: _matchedUser!.name,
+            size: 32,
+            imageUrls: _matchedUser!.imageUrls,
           ),
           const SizedBox(width: 8),
           Container(
@@ -366,12 +379,12 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
         mainAxisAlignment: isMe ? MainAxisAlignment.end : MainAxisAlignment.start,
         crossAxisAlignment: CrossAxisAlignment.end,
         children: [
+          // Show the matched user's avatar on their messages
           if (!isMe && _matchedUser != null) ...[
-            CircleAvatar(
-              backgroundImage: NetworkImage(_matchedUser!.imageUrls.isNotEmpty
-                  ? _matchedUser!.imageUrls[0]
-                  : 'https://i.pravatar.cc/300?img=33'),
-              radius: 16,
+            LetterAvatar(
+              name: _matchedUser!.name,
+              size: 32,
+              imageUrls: _matchedUser!.imageUrls,
             ),
             const SizedBox(width: 8),
           ],
@@ -403,11 +416,13 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
             ),
           ),
 
+          // Show the current user's avatar on their messages
           if (isMe) ...[
             const SizedBox(width: 8),
-            CircleAvatar(
-              backgroundImage: const NetworkImage('https://i.pravatar.cc/300?img=33'),
-              radius: 16,
+            LetterAvatar(
+              name: "Me", // Or get the current user's name
+              size: 32,
+              backgroundColor: AppColors.primary,
             ),
           ],
         ],
