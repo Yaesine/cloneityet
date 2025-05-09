@@ -34,7 +34,7 @@ dependencies:
   country_code_picker: ^3.0.0
 
 flutter_native_splash:
-  color: "#FF5E56"
+  color: "#000000"
   image: assets/logo.png
   android: true
   ios: true
