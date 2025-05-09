@@ -1,4 +1,4 @@
-// lib/animations/modern_match_animation.dart
+// Fixed version of lib/animations/modern_match_animation.dart
 import 'package:flutter/cupertino.dart';
 import 'package:flutter/material.dart';
 import 'package:confetti/confetti.dart';
@@ -6,6 +6,7 @@ import 'dart:math';
 
 import '../models/user_model.dart';
 import '../theme/app_theme.dart';
+import '../widgets/components/letter_avatar.dart'; // Add this import
 
 class ModernMatchAnimation extends StatefulWidget {
   final User currentUser;
@@ -164,7 +165,7 @@ class _ModernMatchAnimationState extends State<ModernMatchAnimation> with Single
                           child: Row(
                             mainAxisAlignment: MainAxisAlignment.center,
                             children: [
-                              // Current user image with glow
+                              // Current user image with glow - using safe LetterAvatar
                               Container(
                                 width: 130,
                                 height: 130,
@@ -181,9 +182,22 @@ class _ModernMatchAnimationState extends State<ModernMatchAnimation> with Single
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(100),
-                                  child: Image.network(
+                                  child: widget.currentUser.imageUrls.isNotEmpty
+                                      ? Image.network(
                                     widget.currentUser.imageUrls[0],
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return LetterAvatar(
+                                        name: widget.currentUser.name,
+                                        size: 130,
+                                        showBorder: false,
+                                      );
+                                    },
+                                  )
+                                      : LetterAvatar(
+                                    name: widget.currentUser.name,
+                                    size: 130,
+                                    showBorder: false,
                                   ),
                                 ),
                               ),
@@ -220,7 +234,7 @@ class _ModernMatchAnimationState extends State<ModernMatchAnimation> with Single
                                   }
                               ),
 
-                              // Matched user image with glow
+                              // Matched user image with glow - using safe LetterAvatar
                               Container(
                                 width: 130,
                                 height: 130,
@@ -237,9 +251,22 @@ class _ModernMatchAnimationState extends State<ModernMatchAnimation> with Single
                                 ),
                                 child: ClipRRect(
                                   borderRadius: BorderRadius.circular(100),
-                                  child: Image.network(
+                                  child: widget.matchedUser.imageUrls.isNotEmpty
+                                      ? Image.network(
                                     widget.matchedUser.imageUrls[0],
                                     fit: BoxFit.cover,
+                                    errorBuilder: (context, error, stackTrace) {
+                                      return LetterAvatar(
+                                        name: widget.matchedUser.name,
+                                        size: 130,
+                                        showBorder: false,
+                                      );
+                                    },
+                                  )
+                                      : LetterAvatar(
+                                    name: widget.matchedUser.name,
+                                    size: 130,
+                                    showBorder: false,
                                   ),
                                 ),
                               ),
