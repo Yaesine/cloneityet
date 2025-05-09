@@ -133,11 +133,15 @@ class _EnhancedSwipeCardState extends State<EnhancedSwipeCard> with SingleTicker
                         )
                             : Container(
                           key: ValueKey<String>('letter-avatar-${widget.user.id}'),
-                          child: LetterAvatar(
-                            name: widget.user.name,
-                            size: MediaQuery.of(context).size.width,
-                            backgroundColor: AppColors.primary,
-                            showBorder: false,
+                          color: AppColors.primary, // Use app's primary color as background
+                          alignment: Alignment.center,
+                          child: Text(
+                            widget.user.name.isNotEmpty ? widget.user.name[0].toUpperCase() : '?',
+                            style: TextStyle(
+                              color: Colors.white,
+                              fontSize: MediaQuery.of(context).size.width * 0.3, // Responsive font size
+                              fontWeight: FontWeight.bold,
+                            ),
                           ),
                         ),
                       ),

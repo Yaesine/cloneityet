@@ -11,6 +11,7 @@ import '../screens/modern_profile_edit_screen.dart';
 import '../screens/photo_manager_screen.dart';
 import '../screens/profile_verification_screen.dart';
 import '../screens/premium_screen.dart';
+import '../widgets/components/letter_avatar.dart';
 
 class TinderStyleProfileScreen extends StatefulWidget {
   const TinderStyleProfileScreen({Key? key}) : super(key: key);
@@ -78,7 +79,28 @@ class _TinderStyleProfileScreenState extends State<TinderStyleProfileScreen> wit
     // Make sure we don't exceed 100%
     return min(completionScore.round(), 100);
   }
+// Add this helper method to the _TinderStyleProfileScreenState class
 
+// Helper method to create a full-screen letter avatar without border radius
+  Widget _buildFullScreenLetterAvatar(String name) {
+    // Get the first letter of the name, defaulting to '?' if name is empty
+    final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Container(
+      color: AppColors.primary, // Use the app's primary color as background
+      width: double.infinity,
+      height: double.infinity,
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: const TextStyle(
+          color: Colors.white,
+          fontSize: 150,
+          fontWeight: FontWeight.bold,
+        ),
+      ),
+    );
+  }
 
   Future<void> _loadUserData() async {
     setState(() {
@@ -183,44 +205,50 @@ class _TinderStyleProfileScreenState extends State<TinderStyleProfileScreen> wit
   Widget _buildProfileHeader(User user) {
     return Stack(
       children: [
-        // Profile image
-        Container(
-          height: 440,
-          width: double.infinity,
-          decoration: const BoxDecoration(
-            boxShadow: [
-              BoxShadow(
-                color: Colors.black12,
-                blurRadius: 10,
-                offset: Offset(0, 2),
-              ),
-            ],
+      // Modified profile image section for TinderStyleProfileScreen
+// Replace the existing profile image section with this version
+
+// Profile image
+      // Updated profile image section for TinderStyleProfileScreen
+// This version removes border radius from the letter avatar and makes it fill the container
+
+// Profile image
+      Container(
+      height: 440,
+      width: double.infinity,
+      decoration: const BoxDecoration(
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black12,
+            blurRadius: 10,
+            offset: Offset(0, 2),
           ),
-          child: ClipRRect(
-            borderRadius: const BorderRadius.only(
-              bottomLeft: Radius.circular(16),
-              bottomRight: Radius.circular(16),
-            ),
-            child: CachedNetworkImage(
-              imageUrl: user.imageUrls.isNotEmpty
-                  ? user.imageUrls[0]
-                  : 'https://i.pravatar.cc/300?img=33',
-              fit: BoxFit.cover,
-              placeholder: (context, url) => Container(
-                color: Colors.grey[300],
-                child: const Center(
-                  child: CircularProgressIndicator(
-                    valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
-                  ),
-                ),
-              ),
-              errorWidget: (context, url, error) => Container(
-                color: Colors.grey[300],
-                child: const Icon(Icons.error_outline, size: 60),
-              ),
-            ),
-          ),
+        ],
+      ),
+      child: ClipRRect(
+        borderRadius: const BorderRadius.only(
+          bottomLeft: Radius.circular(16),
+          bottomRight: Radius.circular(16),
         ),
+        child: user.imageUrls.isNotEmpty
+            ? CachedNetworkImage(
+          imageUrl: user.imageUrls[0],
+          fit: BoxFit.cover,
+          placeholder: (context, url) => Container(
+            color: Colors.grey[300],
+            child: const Center(
+              child: CircularProgressIndicator(
+                valueColor: AlwaysStoppedAnimation<Color>(AppColors.primary),
+              ),
+            ),
+          ),
+          errorWidget: (context, url, error) => _buildFullScreenLetterAvatar(user.name),
+        )
+            : _buildFullScreenLetterAvatar(user.name),
+      ),
+
+    ),
+
 
         // Back button
         Positioned(

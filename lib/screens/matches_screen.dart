@@ -2,7 +2,9 @@ import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import '../providers/user_provider.dart';
 import '../models/user_model.dart';
+import '../theme/app_theme.dart';
 import '../utils/custom_page_route.dart';
+import '../widgets/components/letter_avatar.dart';
 import 'modern_chat_screen.dart';
 
 class MatchesScreen extends StatefulWidget {
@@ -127,19 +129,18 @@ class _MatchesScreenState extends State<MatchesScreen> with SingleTickerProvider
           child: Stack(
             fit: StackFit.expand,
             children: [
-              // Profile Image
+              // Profile Image with full-width letter avatar fallback
               Hero(
                 tag: 'profile_${user.id}',
-                child: Image.network(
-                  user.imageUrls.isNotEmpty ? user.imageUrls[0] : 'https://i.pravatar.cc/300?img=33',
+                child: user.imageUrls.isNotEmpty
+                    ? Image.network(
+                  user.imageUrls[0],
                   fit: BoxFit.cover,
                   errorBuilder: (context, error, stackTrace) {
-                    return Container(
-                      color: Colors.grey.shade300,
-                      child: const Icon(Icons.person, size: 50),
-                    );
+                    return _buildFullWidthLetterAvatar(user.name);
                   },
-                ),
+                )
+                    : _buildFullWidthLetterAvatar(user.name),
               ),
 
               // Name overlay
@@ -210,6 +211,23 @@ class _MatchesScreenState extends State<MatchesScreen> with SingleTickerProvider
               ),
             ],
           ),
+        ),
+      ),
+    );
+  }
+
+  Widget _buildFullWidthLetterAvatar(String name) {
+    final letter = name.isNotEmpty ? name[0].toUpperCase() : '?';
+
+    return Container(
+      color: AppColors.primary,
+      alignment: Alignment.center,
+      child: Text(
+        letter,
+        style: TextStyle(
+          color: Colors.white,
+          fontSize: 60,
+          fontWeight: FontWeight.bold,
         ),
       ),
     );

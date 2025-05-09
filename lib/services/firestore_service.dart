@@ -105,6 +105,9 @@ class FirestoreService {
   // Enhanced createNewUser method for FirestoreService
 // Replace the existing method with this improved version
 
+  // Modified createNewUser method for lib/services/firestore_service.dart
+// Replace the existing method with this improved version
+
   Future<void> createNewUser(String userId, String name, String email) async {
     try {
       print('Creating user profile for $userId in Firestore');

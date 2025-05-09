@@ -206,6 +206,9 @@ class UserProvider with ChangeNotifier {
   }
 
   // In lib/providers/user_provider.dart - forceSyncCurrentUser() method
+  // Modified forceSyncCurrentUser method for lib/providers/user_provider.dart
+// Replace the existing method with this updated version
+
   Future<void> forceSyncCurrentUser() async {
     try {
       // Get the current Firebase Auth user
@@ -223,13 +226,16 @@ class UserProvider with ChangeNotifier {
       if (existingUser == null) {
         print('User document does not exist in Firestore. Creating it now...');
 
-        // Create basic profile - removing the email field since it's not in your User model
+        // Get user's name from Firebase Auth
+        final userName = authInstance.currentUser?.displayName ?? 'New User';
+
+        // Create basic profile - without any default profile image
         User newUser = User(
           id: userId,
-          name: authInstance.currentUser?.displayName ?? 'New User',
+          name: userName,
           age: 25,
           bio: 'Tell others about yourself...',
-          imageUrls: ['https://i.pravatar.cc/300?img=33'],
+          imageUrls: [], // Empty array - we won't add any default image
           interests: ['Travel', 'Music', 'Movies'],
           location: 'New York, NY',
           gender: '',
