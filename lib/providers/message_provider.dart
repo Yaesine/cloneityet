@@ -25,7 +25,14 @@ class MessageProvider with ChangeNotifier {
     notifyListeners();
 
     try {
+      print('MessageProvider: Loading messages for chat with $matchedUserId');
+
+      // Stop any existing subscription first
+      stopMessagesStream();
+
+      // Load initial messages
       _messages = await _firestoreService.getMessages(matchedUserId);
+      print('MessageProvider: Loaded ${_messages.length} initial messages');
 
       // Mark all messages from the matched user as read
       await _firestoreService.markMessagesAsRead(matchedUserId);
@@ -44,40 +51,63 @@ class MessageProvider with ChangeNotifier {
   // Send a message
   Future<bool> sendMessage(String receiverId, String text) async {
     try {
+      print('MessageProvider: Sending message to $receiverId: "$text"');
+
       bool success = await _firestoreService.sendMessage(receiverId, text);
 
       if (success) {
-        // Message will be added through the stream listener
+        print('MessageProvider: Message sent successfully');
+        // Force refresh the messages to make sure new message appears
+        if (_currentChatUserId == receiverId) {
+          _messages = await _firestoreService.getMessages(receiverId);
+          notifyListeners();
+        }
         return true;
+      } else {
+        print('MessageProvider: Message sending failed');
+        return false;
       }
-      return false;
     } catch (e) {
       print('Error sending message: $e');
       return false;
     }
   }
 
+
   // Listen to messages stream
   void _startMessagesStream(String matchedUserId) {
     // Cancel previous subscription if it exists
     _messagesSubscription?.cancel();
 
+    print('MessageProvider: Starting message stream for $matchedUserId');
+
     _messagesSubscription = _firestoreService.messagesStream(matchedUserId)
         .listen((updatedMessages) {
+      print('MessageProvider: Stream update with ${updatedMessages.length} messages');
+
+      if (updatedMessages.isNotEmpty) {
+        print('MessageProvider: Latest message - "${updatedMessages.first.text}"');
+      }
+
       _messages = updatedMessages;
+
       // Mark any new messages as read
       _firestoreService.markMessagesAsRead(matchedUserId);
+
       notifyListeners();
-    });
+    },
+        onError: (error) {
+          print('MessageProvider: Error in message stream: $error');
+        });
   }
 
   // Stop listening to messages stream
   void stopMessagesStream() {
+    print('MessageProvider: Stopping message stream');
     _messagesSubscription?.cancel();
     _messagesSubscription = null;
     _currentChatUserId = null;
   }
-
   @override
   void dispose() {
     stopMessagesStream();

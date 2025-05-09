@@ -12,6 +12,9 @@ import '../theme/app_theme.dart';
 class ModernChatScreen extends StatefulWidget {
   const ModernChatScreen({Key? key}) : super(key: key);
 
+
+
+
   @override
   _ModernChatScreenState createState() => _ModernChatScreenState();
 }
@@ -42,14 +45,15 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
     super.dispose();
   }
 
+  // Also update the _loadMessages method:
   Future<void> _loadMessages() async {
     try {
       print("Attempting to load messages");
+
       // Get matched user from route arguments with null safety
       final args = ModalRoute.of(context)?.settings.arguments;
       if (args == null) {
         print("No arguments passed to ModernChatScreen");
-        // Handle case when no arguments are passed
         if (mounted) {
           setState(() {
             _isLoading = false;
@@ -74,7 +78,13 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
 
       // Load messages for this match using the Provider
       final messageProvider = Provider.of<MessageProvider>(context, listen: false);
+
+      // Make sure we stop any existing stream first
+      messageProvider.stopMessagesStream();
+
+      // Then load messages fresh
       await messageProvider.loadMessages(_matchedUser!.id);
+
       print("Messages loaded successfully");
 
       if (mounted) {
@@ -146,6 +156,12 @@ class _ModernChatScreenState extends State<ModernChatScreen> {
           ),
         );
       } else {
+        // Force a refresh of the messages
+        if (mounted) {
+          // Reload messages to ensure the UI updates
+          await messageProvider.loadMessages(_matchedUser!.id);
+        }
+
         // Scroll to bottom after sending
         Future.delayed(const Duration(milliseconds: 100), () {
           if (_scrollController.hasClients) {

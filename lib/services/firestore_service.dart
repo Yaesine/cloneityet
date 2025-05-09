@@ -548,29 +548,43 @@ class FirestoreService {
   }
 
   // Listen to new messages stream
+  // Replace this method in lib/services/firestore_service.dart
+
+// Listen to new messages stream - simplest approach
   Stream<List<Message>> messagesStream(String matchedUserId) {
     if (currentUserId == null) {
       return Stream.value([]);
     }
 
+    print('Setting up messages stream between $currentUserId and $matchedUserId');
+
+    // Create a broader query and then filter in memory
     return _messagesCollection
-        .where('senderId', whereIn: [currentUserId, matchedUserId])
-        .where('receiverId', whereIn: [currentUserId, matchedUserId])
         .orderBy('timestamp', descending: true)
+        .limit(100) // Add a reasonable limit
         .snapshots()
         .map((snapshot) {
       List<Message> messages = [];
 
-      for (var doc in snapshot.docs) {
-        Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+      print('Got ${snapshot.docs.length} total message documents');
 
-        // Only include messages between these two specific users
-        if ((data['senderId'] == currentUserId && data['receiverId'] == matchedUserId) ||
-            (data['senderId'] == matchedUserId && data['receiverId'] == currentUserId)) {
-          messages.add(Message.fromFirestore(doc));
+      for (var doc in snapshot.docs) {
+        try {
+          Map<String, dynamic> data = doc.data() as Map<String, dynamic>;
+          String senderId = data['senderId'] ?? '';
+          String receiverId = data['receiverId'] ?? '';
+
+          // Only include messages that are between these two users
+          if ((senderId == currentUserId && receiverId == matchedUserId) ||
+              (senderId == matchedUserId && receiverId == currentUserId)) {
+            messages.add(Message.fromFirestore(doc));
+          }
+        } catch (e) {
+          print('Error parsing message: $e');
         }
       }
 
+      print('Filtered to ${messages.length} relevant messages for chat UI');
       return messages;
     });
   }
