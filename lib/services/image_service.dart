@@ -1,10 +1,12 @@
 import 'dart:io';
+import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 
 class ImageService {
   final FirebaseStorage _storage = FirebaseStorage.instance;
+  final FirebaseFirestore _firestore = FirebaseFirestore.instance; // Add this line
   final ImagePicker _picker = ImagePicker();
   final Uuid _uuid = Uuid();
 
@@ -41,19 +43,49 @@ class ImageService {
   // Upload image to Firebase Storage
   Future<String?> uploadImage(File imageFile, String userId) async {
     try {
+      // Check file size first (max 5MB)
+      final fileSize = await imageFile.length();
+      if (fileSize > 5 * 1024 * 1024) {
+        throw Exception('Image is too large. Maximum file size is 5MB.');
+      }
+
       String fileName = '${userId}_${_uuid.v4()}.jpg';
       Reference storageRef = _storage.ref().child('profile_images/$fileName');
 
-      // Upload file
-      UploadTask uploadTask = storageRef.putFile(imageFile);
+      // Create upload task with metadata
+      SettableMetadata metadata = SettableMetadata(
+        contentType: 'image/jpeg',
+        customMetadata: {
+          'userId': userId,
+          'uploadedAt': DateTime.now().toIso8601String(),
+        },
+      );
+
+      // Upload file with progress monitoring
+      UploadTask uploadTask = storageRef.putFile(imageFile, metadata);
+
+      // Monitor upload progress
+      uploadTask.snapshotEvents.listen((TaskSnapshot snapshot) {
+        double progress = snapshot.bytesTransferred / snapshot.totalBytes;
+        print('Upload progress: ${(progress * 100).toStringAsFixed(2)}%');
+      });
+
+      // Wait for completion
       TaskSnapshot taskSnapshot = await uploadTask;
 
       // Get download URL
       String downloadUrl = await taskSnapshot.ref.getDownloadURL();
+
+      // Update the user's profile to include this new image
+      await _firestore.collection('users').doc(userId).update({
+        'imageUrls': FieldValue.arrayUnion([downloadUrl]),
+        'lastUpdated': FieldValue.serverTimestamp(),
+      });
+
       return downloadUrl;
     } catch (e) {
       print('Error uploading image: $e');
-      return null;
+      throw Exception('Failed to upload image: ${e.toString()}');
     }
   }
 

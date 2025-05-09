@@ -116,19 +116,15 @@ class FirestoreService {
         return;
       }
 
-      // Generate placeholder image URL based on the name
-      final nameInitial = name.isNotEmpty ? name[0].toUpperCase() : 'A';
-      final placeholderImage = 'https://ui-avatars.com/api/?name=$nameInitial&background=FF4458&color=fff&size=256';
-
-      // Create basic user profile with more fields initialized
+      // Create basic user profile WITHOUT a default profile image
       Map<String, dynamic> userData = {
         'id': userId,
         'name': name,
         'email': email,
         'age': 25,
-        'bio': 'Tell others about yourself...',
-        'imageUrls': [placeholderImage],
-        'interests': ['Travel', 'Music', 'Movies'],
+        'bio': '',
+        'imageUrls': [], // Empty array - no default picture
+        'interests': [],
         'location': 'Abu Dhabi',
         'gender': '',
         'lookingFor': '',
@@ -137,6 +133,7 @@ class FirestoreService {
         'ageRangeEnd': 50,
         'createdAt': FieldValue.serverTimestamp(),
         'lastActive': FieldValue.serverTimestamp(),
+        'profileComplete': false, // Add a flag to track profile completion
       };
 
       // Use a transaction to ensure data consistency
@@ -253,31 +250,54 @@ class FirestoreService {
       QuerySnapshot swipesSnapshot = await _swipesCollection
           .where('swipedId', isEqualTo: currentUserId)
           .where('liked', isEqualTo: true)
+          .orderBy('timestamp', descending: true) // Get most recent first
+          .limit(50) // Limit to recent likes for performance
           .get();
 
       print('Found ${swipesSnapshot.docs.length} users who liked me');
 
       // Extract user IDs of users who liked the current user
       List<String> likedByUserIds = [];
+      Map<String, bool> isSuperLike = {};
+      Map<String, DateTime> likeTimestamps = {};
+
       for (var doc in swipesSnapshot.docs) {
         try {
-          String swiperId = (doc.data() as Map<String, dynamic>)['swiperId'] as String;
+          final data = doc.data() as Map<String, dynamic>;
+          String swiperId = data['swiperId'] as String;
+          bool superLiked = data['superLiked'] ?? false;
+          DateTime timestamp = (data['timestamp'] as Timestamp).toDate();
 
           // Skip users that are already matched
           if (!await isMatched(swiperId)) {
             likedByUserIds.add(swiperId);
+            isSuperLike[swiperId] = superLiked;
+            likeTimestamps[swiperId] = timestamp;
           }
         } catch (e) {
           print('Error parsing swipe record: $e');
         }
       }
 
-      // Get user details for each liker
+      // Get user details for each liker with additional metadata
       List<User> likedByUsers = [];
       for (String userId in likedByUserIds) {
         User? user = await getUserData(userId);
         if (user != null) {
+          // Store the like metadata in a way we can access it
+          // (in a real app, you'd extend the User model)
           likedByUsers.add(user);
+
+          // Store in a separate collection for quick access
+          await _firestore.collection('user_likes')
+              .doc('${currentUserId}_$userId')
+              .set({
+            'likedUserId': currentUserId,
+            'likedByUserId': userId,
+            'timestamp': Timestamp.fromDate(likeTimestamps[userId]!),
+            'isSuperLike': isSuperLike[userId] ?? false,
+            'isViewed': false, // New - track if the user has viewed this like
+          });
         }
       }
 
@@ -285,6 +305,89 @@ class FirestoreService {
     } catch (e) {
       print('Error getting users who liked me: $e');
       return [];
+    }
+  }
+
+
+  Future<void> markLikeAsViewed(String likedByUserId) async {
+    if (currentUserId == null) return;
+
+    try {
+      await _firestore.collection('user_likes')
+          .doc('${currentUserId}_$likedByUserId')
+          .update({'isViewed': true});
+    } catch (e) {
+      print('Error marking like as viewed: $e');
+    }
+  }
+
+  Future<void> trackProfileView(String viewedUserId) async {
+    try {
+      String? viewerId = auth.FirebaseAuth.instance.currentUser?.uid;
+      if (viewerId == null || viewerId == viewedUserId) return;
+
+      // Check if this user has viewed this profile recently
+      final last24Hours = DateTime.now().subtract(Duration(hours: 24));
+
+      QuerySnapshot recentViews = await _firestore.collection('profile_views')
+          .where('viewerId', isEqualTo: viewerId)
+          .where('viewedUserId', isEqualTo: viewedUserId)
+          .where('timestamp', isGreaterThan: Timestamp.fromDate(last24Hours))
+          .limit(1)
+          .get();
+
+      // If already viewed in the last 24 hours, just update timestamp
+      if (recentViews.docs.isNotEmpty) {
+        await recentViews.docs.first.reference.update({
+          'timestamp': FieldValue.serverTimestamp(),
+          'viewCount': FieldValue.increment(1),
+        });
+      } else {
+        // New view
+        await _firestore.collection('profile_views').add({
+          'viewerId': viewerId,
+          'viewedUserId': viewedUserId,
+          'timestamp': FieldValue.serverTimestamp(),
+          'viewCount': 1,
+          'isRead': false,
+        });
+
+        // Get viewer's name for notification
+        DocumentSnapshot viewerDoc = await _firestore.collection('users').doc(viewerId).get();
+        Map<String, dynamic>? viewerData = viewerDoc.data() as Map<String, dynamic>?;
+        String viewerName = viewerData?['name'] ?? 'Someone';
+
+        // Send notification
+        await _notificationManager.sendProfileViewNotification(
+            viewedUserId,
+            viewerName
+        );
+      }
+    } catch (e) {
+      print('Error tracking profile view: $e');
+    }
+  }
+
+
+  Future<void> markProfileViewsAsRead() async {
+    if (currentUserId == null) return;
+
+    try {
+      // Find all unread views
+      QuerySnapshot unreadViews = await _firestore.collection('profile_views')
+          .where('viewedUserId', isEqualTo: currentUserId)
+          .where('isRead', isEqualTo: false)
+          .get();
+
+      // Batch update
+      WriteBatch batch = _firestore.batch();
+      for (var doc in unreadViews.docs) {
+        batch.update(doc.reference, {'isRead': true});
+      }
+
+      await batch.commit();
+    } catch (e) {
+      print('Error marking profile views as read: $e');
     }
   }
 

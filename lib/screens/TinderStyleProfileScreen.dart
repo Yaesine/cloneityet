@@ -1,3 +1,5 @@
+import 'dart:math';
+
 import 'package:flutter/material.dart';
 import 'package:provider/provider.dart';
 import 'package:cached_network_image/cached_network_image.dart';
@@ -39,6 +41,45 @@ class _TinderStyleProfileScreenState extends State<TinderStyleProfileScreen> wit
     super.dispose();
   }
 
+  int calculateProfileCompletion(User user) {
+    int completionScore = 0;
+
+    // Only count imageUrls if the user has actually uploaded at least one
+    if (user.imageUrls.isNotEmpty) {
+      completionScore += 30; // Give more weight to having a profile picture
+    }
+
+    // Bio should be meaningful
+    if (user.bio.length > 20) {
+      completionScore += 20;
+    } else if (user.bio.isNotEmpty) {
+      completionScore += 5; // Some credit for starting a bio
+    }
+
+    // Interests are important for matching
+    if (user.interests.length >= 3) {
+      completionScore += 20;
+    } else if (user.interests.isNotEmpty) {
+      completionScore += (10 * user.interests.length / 3) as int; // Partial credit
+    }
+
+    // Location is required
+    if (user.location.isNotEmpty) {
+      completionScore += 15;
+    }
+
+    // Gender preferences
+    if (user.gender.isNotEmpty && user.lookingFor.isNotEmpty) {
+      completionScore += 15;
+    } else if (user.gender.isNotEmpty || user.lookingFor.isNotEmpty) {
+      completionScore += 7; // Partial credit
+    }
+
+    // Make sure we don't exceed 100%
+    return min(completionScore.round(), 100);
+  }
+
+
   Future<void> _loadUserData() async {
     setState(() {
       _isLoading = true;
@@ -54,16 +95,8 @@ class _TinderStyleProfileScreenState extends State<TinderStyleProfileScreen> wit
 
         // Calculate profile completion percentage
         if (user != null) {
-          int completionScore = 0;
-
-          // Check different profile elements
-          if (user.imageUrls.isNotEmpty) completionScore += 25;
-          if (user.bio.length > 20) completionScore += 25;
-          if (user.interests.length >= 3) completionScore += 25;
-          if (user.location.isNotEmpty) completionScore += 25;
-
           setState(() {
-            _profileCompletion = completionScore;
+            _profileCompletion = calculateProfileCompletion(user);
             _isLoading = false;
           });
 
